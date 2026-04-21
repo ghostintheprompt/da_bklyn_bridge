@@ -11,10 +11,10 @@
 
 </div>
 
-## 🛰️ Overview
+## Overview
 **Da Bklyn Bridge** is a precision wireless intelligence suite optimized for the **Alfa AWUS036ACH**. It bridges the gap between raw packet capture and actionable security intelligence, providing a high-fidelity dashboard for airspace enumeration, behavioral client profiling, and anomaly detection.
 
-## 🛠️ Feature Matrix
+## Feature Matrix
 | Feature | Implementation | Description |
 | :--- | :--- | :--- |
 | **Wi-Fi 6/7 Detection** | `capture.py` | Parses HE/EHT extension tags to identify modern infrastructure. |
@@ -25,7 +25,7 @@
 | **EAPOL Logger** | `capture.py` | Passively captures 4-way handshakes for security auditing. |
 | **Geo-Logging** | `gps_module.py` | Full `gpsd` integration for high-precision war-driving. |
 
-## 🚀 Installation
+## Installation
 
 ### 1. Build from Source
 ```bash
@@ -52,7 +52,7 @@ python3 python_tool/api_bridge.py -i wlan0
 
 *For detailed setup on macOS via VM, see [BUILD.md](BUILD.md).*
 
-## 🛡️ Privacy Statement
+## Privacy Statement
 **Local Only. No Telemetry.** 
 Da Bklyn Bridge operates entirely on your local machine. No data, captures, or telemetry are ever sent to external servers. All processing is done passively in-memory or stored in a local SQLite database (`sentinel.db`).
 
