@@ -1,0 +1,14 @@
+[Unit]
+Description=Wireless Sentinel - WiFi Monitoring Suite
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/wireless_sentinel
+ExecStart=/usr/bin/python3 main.py -i wlan0
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

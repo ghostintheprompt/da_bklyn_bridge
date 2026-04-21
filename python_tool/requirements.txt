@@ -1,0 +1,7 @@
+scapy
+rich
+pyyaml
+pandas
+scikit-learn
+flask
+flask-cors

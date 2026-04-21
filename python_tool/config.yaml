@@ -1,0 +1,8 @@
+watched_ssids:
+  - "Home_WiFi"
+  - "Office_Guest"
+deauth_threshold: 15
+interface: wlan0
+dwell_time: 2
+blocklist_macs: []
+discord_webhook_url: ""
