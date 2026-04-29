@@ -1,0 +1,27 @@
+# Build Artifacts
+dist/
+build/
+*.pyc
+__pycache__/
+
+# Dependencies
+node_modules/
+venv/
+env/
+.venv/
+
+# Forensic Data (Protected)
+*.db
+*.pcap
+*.log
+sentinel.db
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Config & Secrets
+config.yaml.local
+.env
+.vscode/
+.idea/
