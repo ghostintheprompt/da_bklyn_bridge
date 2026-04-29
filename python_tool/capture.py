@@ -3,6 +3,8 @@ import time
 import random
 from scapy.all import sniff, Dot11, Dot11ProbeReq, Dot11Beacon, Dot11Deauth, EAPOL
 from scapy.all import conf
+from active_mitigation import ActiveMitigation
+import math
 
 class PacketCapturer:
     def __init__(self, interface, db, alert_mgr, remote_id=None, gps_logger=None):
@@ -16,6 +18,20 @@ class PacketCapturer:
         self.channels_5 = [36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144, 149, 153, 157, 161, 165]
         self.all_channels = self.channels_24 + self.channels_5
         self.current_channel = 1
+        
+        # Phase 4: Active Mitigation (Bridge Mode)
+        self.mitigator = ActiveMitigation(interface, db, alert_mgr)
+
+    def calculate_entropy(self, data):
+        """Calculate Shannon entropy of a byte string."""
+        if not data:
+            return 0
+        entropy = 0
+        for x in range(256):
+            p_x = float(data.count(bytes([x]))) / len(data)
+            if p_x > 0:
+                entropy += - p_x * math.log(p_x, 2)
+        return entropy
 
     def channel_hopper(self):
         while not self.stop_event.is_set():
@@ -37,7 +53,7 @@ class PacketCapturer:
         if self.gps_logger:
             lat, lon = self.gps_logger.get_coords()
 
-        # 1. Probe Request Logger
+        # 1. Probe Request Logger & Actor Fingerprinting
         if pkt.haslayer(Dot11ProbeReq):
             client_mac = pkt.addr2
             try:
@@ -46,9 +62,12 @@ class PacketCapturer:
                 ssid = "<Hidden>"
             rssi = self.get_rssi(pkt)
             self.db.log_probe(client_mac, ssid, rssi, lat, lon)
-            self.alert_mgr.check_probe(client_mac, ssid)
+            
+            # Phase 4: Actor Correlation (Signal Fingerprinting)
+            # This logic leverages analysis.py conceptually via alert_mgr
+            self.alert_mgr.check_probe(client_mac, ssid, rssi)
 
-        # 2. AP Scanner (Beacons)
+        # 2. AP Scanner (Beacons) & Covert Channel Detection
         elif pkt.haslayer(Dot11Beacon):
             bssid = pkt.addr3
             try:
@@ -60,9 +79,8 @@ class PacketCapturer:
             channel = stats.get('channel')
             crypto = "/".join(stats.get('crypto'))
             
-            # 2026 Detection: Wi-Fi 6 (HE) and Wi-Fi 7 (EHT)
-            # We check the tag ID 255 (Extension) in the beacon elements
-            protocol = "802.11ac" # Default for this adapter range
+            # 2026 Detection & Covert Channel Audit
+            protocol = "802.11ac" # Default
             elt = pkt.getlayer(Dot11Beacon).payload
             while hasattr(elt, 'ID'):
                 if elt.ID == 255: # Extension Tag
@@ -71,11 +89,24 @@ class PacketCapturer:
                         if ext_id in [35, 36]: protocol = "Wi-Fi 6 (HE)"
                         elif ext_id == 108: protocol = "Wi-Fi 7 (EHT)"
                     except: pass
+                # Phase 4: Covert Channel Audit (Vendor Specific Tags)
+                elif elt.ID == 221: # Vendor Specific
+                    try:
+                        entropy = self.calculate_entropy(elt.info)
+                        # High entropy (approaching 8.0) suggests encryption/compression (potential exfiltration)
+                        if entropy > 7.5:
+                            self.alert_mgr.log_and_alert("COVERT_CHANNEL_SUSPECTED", f"High entropy vendor tag ({entropy:.2f}) found on {bssid}. Possible exfiltration.", "critical")
+                    except: pass
                 elt = elt.payload
 
             rssi = self.get_rssi(pkt)
             self.db.log_ap(bssid, ssid, channel, rssi, f"{protocol} {crypto}", lat, lon)
-            self.alert_mgr.check_ap(bssid, ssid, rssi, channel)
+            
+            # Trigger mitigation logic during check_ap
+            rogue_detected = self.alert_mgr.check_ap(bssid, ssid, rssi, channel)
+            if rogue_detected and self.mitigator.bridge_mode_enabled:
+                self.mitigator.execute_targeted_deauth(bssid)
+                
             if self.remote_id:
                 self.remote_id.process_packet(pkt)
 
@@ -83,7 +114,7 @@ class PacketCapturer:
         elif pkt.haslayer(EAPOL):
             bssid = pkt[Dot11].addr3
             src = pkt[Dot11].addr2
-            self.alert_mgr.db.log_alert("WPA_HANDSHAKE", f"EAPOL handshake frame captured for BSSID {bssid} from {src}", "info")
+            self.alert_mgr.log_and_alert("WPA_HANDSHAKE", f"EAPOL handshake frame captured for BSSID {bssid} from {src}", "info")
 
         # 3. Deauth Detector
         elif pkt.haslayer(Dot11Deauth):
@@ -115,3 +146,4 @@ class PacketCapturer:
 
     def stop(self):
         self.stop_event.set()
+

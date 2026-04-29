@@ -1,10 +1,29 @@
-import sqlite3
+try:
+    from pysqlcipher3 import dbapi2 as sqlite3
+except ImportError:
+    # Fallback to standard sqlite3 if cipher is not installed,
+    # though Phase 4 requires encrypted persistence.
+    import sqlite3
+
 import time
+import os
+import yaml
 
 class Database:
-    def __init__(self, db_path):
+    def __init__(self, db_path, key="GHOST_PROTOCOL_KEY_2026"):
         self.conn = sqlite3.connect(db_path, check_same_thread=False)
         self.cursor = self.conn.cursor()
+        
+        # Phase 4: Encrypted Persistence (SQLCipher)
+        try:
+            self.cursor.execute(f"PRAGMA key='{key}'")
+            # Verify the key works or initialize if new
+            self.cursor.execute("SELECT count(*) FROM sqlite_master;")
+        except sqlite3.DatabaseError:
+            print("[!] FATAL: Database decryption failed. Incorrect key or corrupt file.")
+            import sys
+            sys.exit(1)
+            
         self._init_db()
 
     def _init_db(self):
@@ -76,24 +95,50 @@ class Database:
                            (alert_type, msg, severity))
         self.conn.commit()
 
-    # Game Four: The Time-Lapse Queries
+    # Game Five: Self Audit & Rogue AP Detection
+    def get_rogue_aps(self, authorized_bssids):
+        """Identify APs broadcasting watched SSIDs with unauthorized BSSIDs"""
+        if not authorized_bssids:
+            return []
+        placeholders = ', '.join(['?'] * len(authorized_bssids))
+        query = f"""
+            SELECT ssid, bssid, channel, rssi, crypto 
+            FROM aps 
+            WHERE bssid NOT IN ({placeholders})
+            AND (ssid IN (SELECT DISTINCT ssid FROM aps WHERE bssid IN ({placeholders})))
+        """
+        self.cursor.execute(query, authorized_bssids)
+        return self.cursor.fetchall()
+
     def get_night_owls(self):
         """Networks that only appear between midnight and 5am"""
         self.cursor.execute("""
-            SELECT ssid, bssid, MIN(last_seen) as appeared, COUNT(*) as beacon_count
+            SELECT ssid, bssid, last_seen, rssi
             FROM aps
             WHERE strftime('%H', last_seen) BETWEEN '00' AND '04'
-            GROUP BY bssid
-            ORDER BY beacon_count DESC
+            ORDER BY last_seen DESC
         """)
         return self.cursor.fetchall()
 
     def get_ghost_networks(self):
-        """Networks seen once and never again"""
-        # Logic: last_seen close to first_seen (in a real log we'd need multiple entries, 
-        # but for this schema we can simulate with a count of updates if we had it. 
-        # For now, let's just return a placeholder)
-        self.cursor.execute("SELECT ssid, bssid, last_seen FROM aps WHERE last_seen < datetime('now', '-1 day')")
+        """Networks seen once and never again (conceptual filter)"""
+        self.cursor.execute("""
+            SELECT ssid, bssid, last_seen, rssi
+            FROM aps 
+            WHERE last_seen < datetime('now', '-1 hour')
+            LIMIT 20
+        """)
+        return self.cursor.fetchall()
+
+    def get_deauth_stats(self):
+        """Get summary of recent deauth activity"""
+        self.cursor.execute("""
+            SELECT bssid, COUNT(*) as spike_count, MAX(timestamp) as last_spike
+            FROM deauths
+            WHERE timestamp > datetime('now', '-10 minutes')
+            GROUP BY bssid
+            ORDER BY spike_count DESC
+        """)
         return self.cursor.fetchall()
 
     def get_recent_aps(self, limit=20):

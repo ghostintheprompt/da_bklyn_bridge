@@ -1,6 +1,7 @@
 import pandas as pd
 from sklearn.ensemble import IsolationForest
 import numpy as np
+import math
 
 class AnomalyDetector:
     def __init__(self, db):
@@ -30,3 +31,31 @@ class AnomalyDetector:
             
         pred = self.clf.predict([[rssi, channel]])
         return pred[0] == -1 # Returns True if outlier
+
+    # Phase 4: Actor Correlation (Signal Physics Fingerprinting)
+    def calculate_entropy(self, data):
+        """Calculate Shannon entropy of a byte string to detect encrypted/compressed payloads."""
+        if not data:
+            return 0
+        entropy = 0
+        for x in range(256):
+            p_x = float(data.count(bytes([x]))) / len(data)
+            if p_x > 0:
+                entropy += - p_x * math.log(p_x, 2)
+        return entropy
+
+    def fingerprint_actor(self, mac, rssi, probed_ssids):
+        """
+        Attempts to correlate a MAC address (even if randomized) to a profile
+        based on signal strength stability and preferred network lists.
+        """
+        # In a full implementation, this would cluster MACs with similar RSSI variance 
+        # and identical probed_ssids over time, assigning a persistent 'Actor ID'.
+        # For now, we return a hash of the sorted SSIDs as a basic fingerprint.
+        if not probed_ssids:
+            return "UNKNOWN_ACTOR"
+        
+        fingerprint_source = "".join(sorted(list(probed_ssids)))
+        import hashlib
+        return f"ACTOR-{hashlib.md5(fingerprint_source.encode()).hexdigest()[:8].upper()}"
+
