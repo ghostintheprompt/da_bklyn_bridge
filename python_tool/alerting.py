@@ -14,10 +14,13 @@ class AlertManager:
         self.scanner_threshold = 10 # Unique SSIDs probed by one MAC
         self.probes_by_mac = {}
 
+    def _mac_set(self, key):
+        return {mac.upper() for mac in self.config.get(key, []) if isinstance(mac, str)}
+
     def load_config(self, path):
         if os.path.exists(path):
             with open(path, 'r') as f:
-                return yaml.safe_load(f)
+                return yaml.safe_load(f) or {}
         return {
             'watched_ssids': [],
             'watched_bssids': [],
@@ -35,8 +38,9 @@ class AlertManager:
         self.webhook_mgr.send_alert(alert_type, full_msg, severity)
 
     def check_probe(self, mac, ssid, rssi=None):
+        mac = mac.upper() if isinstance(mac, str) else mac
         # Guardrail: Blocklisted MAC detection
-        if mac in self.config.get('blocklist_macs', []):
+        if mac in self._mac_set('blocklist_macs'):
             self.log_and_alert("GUARDRAIL_VIOLATION", f"Blocklisted MAC {mac} detected probing for {ssid}", "critical")
 
         # Alert on watched SSID
@@ -54,10 +58,11 @@ class AlertManager:
              self.log_and_alert("SCANNER_DETECTED", msg, "critical")
 
     def check_ap(self, bssid, ssid, rssi=None, channel=None):
+        bssid = bssid.upper() if isinstance(bssid, str) else bssid
         rogue_detected = False
         if ssid in self.config.get('watched_ssids', []):
              # Self Audit: Rogue AP detection logic (BSSID check)
-             if bssid not in self.config.get('watched_bssids', []):
+             if bssid not in self._mac_set('watched_bssids'):
                  self.log_and_alert("ROGUE_AP_DETECTED", f"Unauthorized AP for watched SSID: {ssid} ({bssid})", "critical")
                  rogue_detected = True
              else:

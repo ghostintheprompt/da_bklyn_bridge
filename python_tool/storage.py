@@ -1,28 +1,41 @@
 try:
     from pysqlcipher3 import dbapi2 as sqlite3
+    SQLCIPHER_AVAILABLE = True
 except ImportError:
-    # Fallback to standard sqlite3 if cipher is not installed,
-    # though Phase 4 requires encrypted persistence.
+    # Fallback to standard sqlite3 if cipher is not installed.
+    # This is acceptable for local lab replay, but not for trusted evidence.
     import sqlite3
+    SQLCIPHER_AVAILABLE = False
 
 import time
 import os
 import yaml
 
 class Database:
-    def __init__(self, db_path, key="GHOST_PROTOCOL_KEY_2026"):
+    def __init__(self, db_path, key=None):
         self.conn = sqlite3.connect(db_path, check_same_thread=False)
         self.cursor = self.conn.cursor()
         
-        # Phase 4: Encrypted Persistence (SQLCipher)
-        try:
-            self.cursor.execute(f"PRAGMA key='{key}'")
-            # Verify the key works or initialize if new
-            self.cursor.execute("SELECT count(*) FROM sqlite_master;")
-        except sqlite3.DatabaseError:
-            print("[!] FATAL: Database decryption failed. Incorrect key or corrupt file.")
-            import sys
-            sys.exit(1)
+        key = key or os.environ.get("SENTINEL_DB_KEY")
+        allow_insecure = os.environ.get("SENTINEL_ALLOW_INSECURE_DB") == "1"
+
+        if SQLCIPHER_AVAILABLE:
+            if not key:
+                if not allow_insecure:
+                    raise RuntimeError(
+                        "SENTINEL_DB_KEY is required when SQLCipher is available. "
+                        "Set SENTINEL_ALLOW_INSECURE_DB=1 only for local lab replay."
+                    )
+                print("[!] WARNING: SQLCipher available but DB encryption key is not set. Local lab mode only.")
+            else:
+                try:
+                    escaped_key = key.replace("'", "''")
+                    self.cursor.execute(f"PRAGMA key='{escaped_key}'")
+                    self.cursor.execute("SELECT count(*) FROM sqlite_master;")
+                except sqlite3.DatabaseError as exc:
+                    raise RuntimeError("Database decryption failed. Incorrect key or corrupt file.") from exc
+        elif not allow_insecure:
+            print("[!] WARNING: SQLCipher unavailable. Evidence DB is not encrypted at rest.")
             
         self._init_db()
 
@@ -100,14 +113,15 @@ class Database:
         """Identify APs broadcasting watched SSIDs with unauthorized BSSIDs"""
         if not authorized_bssids:
             return []
+        authorized_bssids = [bssid.upper() for bssid in authorized_bssids]
         placeholders = ', '.join(['?'] * len(authorized_bssids))
         query = f"""
             SELECT ssid, bssid, channel, rssi, crypto 
             FROM aps 
-            WHERE bssid NOT IN ({placeholders})
-            AND (ssid IN (SELECT DISTINCT ssid FROM aps WHERE bssid IN ({placeholders})))
+            WHERE UPPER(bssid) NOT IN ({placeholders})
+            AND (ssid IN (SELECT DISTINCT ssid FROM aps WHERE UPPER(bssid) IN ({placeholders})))
         """
-        self.cursor.execute(query, authorized_bssids)
+        self.cursor.execute(query, authorized_bssids + authorized_bssids)
         return self.cursor.fetchall()
 
     def get_night_owls(self):

@@ -42,7 +42,8 @@ def main():
         print("[!] This tool must be run as root for packet capture.")
         sys.exit(1)
 
-    # Check for updates silently
+    # Check for updates only when explicitly enabled. Trusted/lab runs should not
+    # create unexpected outbound traffic by default.
     check_for_updates()
 
     # Initial Setup
@@ -60,7 +61,8 @@ def main():
     capturer = PacketCapturer(args.interface, db, alert_mgr, remote_id, gps_logger)
     
     if args.arm:
-        capturer.mitigator.enable()
+        if not capturer.mitigator.enable():
+            print("[!] Bridge Mode refused by safety gate. Continuing in passive monitor mode.")
 
     dashboard = SentinelDashboard(db, capturer)
 

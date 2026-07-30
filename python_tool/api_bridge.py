@@ -1,15 +1,38 @@
 import os
 import yaml
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request, abort
 from flask_cors import CORS
 from storage import Database
 
 app = Flask(__name__)
-CORS(app)
+CORS(
+    app,
+    resources={
+        r"/api/*": {
+            "origins": [
+                origin.strip()
+                for origin in os.environ.get(
+                    "SENTINEL_CORS_ORIGINS",
+                    "http://localhost:5173,http://127.0.0.1:5173"
+                ).split(",")
+                if origin.strip()
+            ]
+        }
+    },
+)
 db = Database("sentinel.db")
+
+def require_api_token():
+    token = os.environ.get("SENTINEL_API_TOKEN")
+    if not token:
+        return
+    auth = request.headers.get("Authorization", "")
+    if auth != f"Bearer {token}":
+        abort(401)
 
 @app.route('/api/stats')
 def get_stats():
+    require_api_token()
     interface = "wlan0" # Default
     
     # Fetch core data
@@ -49,4 +72,6 @@ def get_stats():
     return jsonify(stats)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    host = os.environ.get("SENTINEL_API_HOST", "127.0.0.1")
+    port = int(os.environ.get("SENTINEL_API_PORT", "5000"))
+    app.run(host=host, port=port)

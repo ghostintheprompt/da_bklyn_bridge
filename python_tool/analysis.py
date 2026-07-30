@@ -1,15 +1,24 @@
-import pandas as pd
-from sklearn.ensemble import IsolationForest
-import numpy as np
 import math
+
+try:
+    import pandas as pd
+    from sklearn.ensemble import IsolationForest
+    ML_AVAILABLE = True
+except ImportError:
+    pd = None
+    IsolationForest = None
+    ML_AVAILABLE = False
 
 class AnomalyDetector:
     def __init__(self, db):
         self.db = db
-        self.clf = IsolationForest(contamination=0.05, random_state=42)
+        self.clf = IsolationForest(contamination=0.05, random_state=42) if ML_AVAILABLE else None
         self.is_trained = False
 
     def train_baseline(self):
+        if not ML_AVAILABLE:
+            return "[!] ML dependencies unavailable; anomaly baseline skipped."
+
         # Fetch AP and Probe data for training
         query = """
             SELECT rssi, channel FROM aps
@@ -26,7 +35,7 @@ class AnomalyDetector:
         return "[+] Baseline anomaly detection model trained."
 
     def check_anomaly(self, rssi, channel):
-        if not self.is_trained:
+        if not ML_AVAILABLE or not self.is_trained:
             return False
             
         pred = self.clf.predict([[rssi, channel]])
@@ -58,4 +67,3 @@ class AnomalyDetector:
         fingerprint_source = "".join(sorted(list(probed_ssids)))
         import hashlib
         return f"ACTOR-{hashlib.md5(fingerprint_source.encode()).hexdigest()[:8].upper()}"
-

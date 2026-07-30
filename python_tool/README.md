@@ -32,5 +32,23 @@ sudo python3 main.py -i <interface> [OPTIONS]
 Standardized Incident IDs are generated for all alerts:
 `[INC-TIMESTAMP-UUID] ALERT_TYPE: Description`
 
+## Trusted Access Defaults
+
+- Use `SENTINEL_DB_KEY` for encrypted evidence storage when SQLCipher is available.
+- Use `SENTINEL_ALLOW_INSECURE_DB=1` only for local lab replay or unit tests.
+- The API bridge binds to `127.0.0.1` unless `SENTINEL_API_HOST` is set.
+- Set `SENTINEL_API_TOKEN` to require bearer-token access to `/api/stats`.
+- Update checks are disabled unless `SENTINEL_CHECK_UPDATES=1`.
+- `--arm` does not enable active mitigation unless the config passes lab safety gates.
+
+Offline validation:
+
+```bash
+python3 generate_lab_pcap.py --out /tmp/bridge_lab_validation.pcap --write-config /tmp/bridge_lab_config.yaml
+SENTINEL_ALLOW_INSECURE_DB=1 python3 replay_pcap.py /tmp/bridge_lab_validation.pcap --db /tmp/bridge_replay.db --config /tmp/bridge_lab_config.yaml
+SENTINEL_ALLOW_INSECURE_DB=1 python3 report_bundle.py --db /tmp/bridge_replay.db --config /tmp/bridge_lab_config.yaml --out /tmp/bridge_reports
+python3 -m unittest discover -s tests
+```
+
 ---
 *Educational and Forensic use only. UIP V1.5 Compliant.*

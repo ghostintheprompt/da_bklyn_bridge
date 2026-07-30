@@ -1,6 +1,7 @@
 import urllib.request
 import json
 import threading
+import os
 
 VERSION = "1.0.0"
 REPO = "ghostintheprompt/da-bklyn-bridge"
@@ -10,6 +11,9 @@ def check_for_updates():
     Asynchronously checks for updates from GitHub releases.
     Fails silently on connection errors.
     """
+    if os.environ.get("SENTINEL_CHECK_UPDATES") != "1":
+        return
+
     def _check():
         try:
             url = f"https://api.github.com/repos/{REPO}/releases/latest"

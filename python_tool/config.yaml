@@ -1,8 +1,21 @@
 watched_ssids:
   - "Home_WiFi"
   - "Office_Guest"
+watched_bssids: []
 deauth_threshold: 15
 interface: wlan0
 dwell_time: 2
 blocklist_macs: []
 discord_webhook_url: ""
+
+# Trust posture defaults.
+# Keep passive unless operating inside a written, isolated lab scope.
+operation_mode: passive
+trusted_access_ack: false
+authorized_lab_bssids: []
+
+active_mitigation:
+  enabled: false
+  allowed_bssids: []
+  allow_broadcast_client: false
+  frame_count: 1

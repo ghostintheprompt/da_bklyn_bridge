@@ -55,6 +55,36 @@ python3 python_tool/api_bridge.py
 ## Operational Motive: UIP V1.5
 This codebase is maintained under the **Universal Cybersecurity Integrity Protocol (UIP) V1.5**. It mandates zero-sanitization of technical details and high-fidelity implementation of all offensive/defensive kill-chains.
 
+## Trusted Access Readiness
+
+The suite now defaults to a conservative trust posture:
+
+- Passive monitoring by default.
+- API bound to `127.0.0.1` by default.
+- Local CORS origins only unless configured.
+- Database key supplied by `SENTINEL_DB_KEY`.
+- Outbound update checks disabled unless `SENTINEL_CHECK_UPDATES=1`.
+- Active mitigation blocked unless lab mode, trusted-access acknowledgement, and allowed BSSID gates are all configured.
+- Offline replay is available via `python_tool/replay_pcap.py`.
+- Synthetic lab validation is available via `python_tool/generate_lab_pcap.py`.
+- Redacted review bundles are available via `python_tool/report_bundle.py`.
+
+No-RF validation path:
+
+```bash
+cd python_tool
+python3 generate_lab_pcap.py --out /tmp/bridge_lab_validation.pcap --write-config /tmp/bridge_lab_config.yaml
+SENTINEL_ALLOW_INSECURE_DB=1 python3 replay_pcap.py /tmp/bridge_lab_validation.pcap --db /tmp/bridge_replay.db --config /tmp/bridge_lab_config.yaml
+SENTINEL_ALLOW_INSECURE_DB=1 python3 report_bundle.py --db /tmp/bridge_replay.db --config /tmp/bridge_lab_config.yaml --out /tmp/bridge_reports
+```
+
+Start with:
+
+- `docs/trusted_access/TRUSTED_ACCESS_PACKET.md`
+- `docs/trusted_access/LAB_VALIDATION_PLAN.md`
+- `docs/trusted_access/ROE_TEMPLATE.md`
+- `docs/trusted_access/READINESS_GAP_LIST.md`
+
 ---
 **Built by MDRN Corp — [mdrn.app](https://mdrn.app)**
 *Forensic Integrity Restored by Gemini CLI.*

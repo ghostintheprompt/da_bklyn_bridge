@@ -1,10 +1,14 @@
 import threading
 import time
-import random
-from scapy.all import sniff, Dot11, Dot11ProbeReq, Dot11Beacon, Dot11Deauth, EAPOL
+from scapy.all import sniff, Dot11, Dot11ProbeReq, Dot11Beacon, Dot11Deauth, Dot11Elt, EAPOL
 from scapy.all import conf
 from active_mitigation import ActiveMitigation
 import math
+
+
+def normalize_mac(mac):
+    return mac.upper() if isinstance(mac, str) else mac
+
 
 class PacketCapturer:
     def __init__(self, interface, db, alert_mgr, remote_id=None, gps_logger=None):
@@ -21,6 +25,18 @@ class PacketCapturer:
         
         # Phase 4: Active Mitigation (Bridge Mode)
         self.mitigator = ActiveMitigation(interface, db, alert_mgr)
+
+    def extract_ssid(self, pkt):
+        """Extract SSID from the first 802.11 SSID information element."""
+        elt = pkt.getlayer(Dot11Elt)
+        while elt is not None and hasattr(elt, "ID"):
+            if elt.ID == 0:
+                try:
+                    return elt.info.decode("utf-8", errors="replace") or "<Hidden>"
+                except Exception:
+                    return "<Hidden>"
+            elt = elt.payload
+        return "<Hidden>"
 
     def calculate_entropy(self, data):
         """Calculate Shannon entropy of a byte string."""
@@ -55,11 +71,8 @@ class PacketCapturer:
 
         # 1. Probe Request Logger & Actor Fingerprinting
         if pkt.haslayer(Dot11ProbeReq):
-            client_mac = pkt.addr2
-            try:
-                ssid = pkt.info.decode('utf-8')
-            except:
-                ssid = "<Hidden>"
+            client_mac = normalize_mac(pkt.addr2)
+            ssid = self.extract_ssid(pkt)
             rssi = self.get_rssi(pkt)
             self.db.log_probe(client_mac, ssid, rssi, lat, lon)
             
@@ -69,11 +82,8 @@ class PacketCapturer:
 
         # 2. AP Scanner (Beacons) & Covert Channel Detection
         elif pkt.haslayer(Dot11Beacon):
-            bssid = pkt.addr3
-            try:
-                ssid = pkt.info.decode('utf-8')
-            except:
-                ssid = "<Hidden>"
+            bssid = normalize_mac(pkt.addr3)
+            ssid = self.extract_ssid(pkt)
             
             stats = pkt.getlayer(Dot11Beacon).network_stats()
             channel = stats.get('channel')
@@ -112,25 +122,24 @@ class PacketCapturer:
 
         # 4. WPA Handshake (EAPOL) Detection
         elif pkt.haslayer(EAPOL):
-            bssid = pkt[Dot11].addr3
-            src = pkt[Dot11].addr2
+            bssid = normalize_mac(pkt[Dot11].addr3)
+            src = normalize_mac(pkt[Dot11].addr2)
             self.alert_mgr.log_and_alert("WPA_HANDSHAKE", f"EAPOL handshake frame captured for BSSID {bssid} from {src}", "info")
 
         # 3. Deauth Detector
         elif pkt.haslayer(Dot11Deauth):
-            target = pkt.addr1
-            source = pkt.addr2
-            bssid = pkt.addr3
+            target = normalize_mac(pkt.addr1)
+            source = normalize_mac(pkt.addr2)
+            bssid = normalize_mac(pkt.addr3)
             reason = pkt.reason
             self.db.log_deauth(bssid, source, target, reason)
             self.alert_mgr.check_deauth(bssid)
 
     def get_rssi(self, pkt):
-        if pkt.haslayer(conf.L2listen): # Radiotap
-            try:
-                return pkt.dBm_AntSignal
-            except:
-                pass
+        try:
+            return int(getattr(pkt, "dBm_AntSignal"))
+        except Exception:
+            pass
         return -100 # Fallback
 
     def start(self):
@@ -146,4 +155,3 @@ class PacketCapturer:
 
     def stop(self):
         self.stop_event.set()
-
