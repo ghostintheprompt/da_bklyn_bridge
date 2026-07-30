@@ -34,6 +34,7 @@ interface AP {
   channel: number;
   rssi: number;
   crypto: string;
+  vendor?: string;
   lastSeen: string;
 }
 
@@ -55,10 +56,40 @@ interface Stats {
   interface: string;
   mode: string;
   channel: number;
+  summary: {
+    ap_count: number;
+    probe_count: number;
+    alert_count: number;
+    active_alert_count: number;
+    rogue_ap_count: number;
+    deauth_group_count: number;
+    night_owl_count: number;
+    ghost_network_count: number;
+    remote_id_alert_count: number;
+  };
   aps: AP[];
   probes: Probe[];
   alerts: Alert[];
+  timelapse: {
+    night_owls: Array<{ ssid: string; bssid: string; time: string }>;
+    ghosts: Array<{ ssid: string; bssid: string; time: string }>;
+  };
+  deauth_stats: Array<{ bssid: string; count: number; last: string }>;
+  rogue_aps: Array<{ ssid: string; bssid: string; channel: number; rssi: number; crypto?: string }>;
+  anomaly_model: {
+    status: string;
+    loaded: boolean;
+    sample_count: number;
+    trained_at?: string | null;
+  };
 }
+
+const formatTimestamp = (timestamp?: string) => {
+  if (!timestamp) return '--:--';
+  const parsed = new Date(timestamp);
+  if (Number.isNaN(parsed.getTime())) return '--:--';
+  return format(parsed, 'HH:mm');
+};
 
 const TechnicalGrid = ({ children }: { children: React.ReactNode }) => (
   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1 p-1 bg-[#1a1a1a] min-h-screen font-mono text-[#e0e0e0]">
@@ -67,7 +98,7 @@ const TechnicalGrid = ({ children }: { children: React.ReactNode }) => (
 );
 
 const Widget = ({ title, icon: Icon, children, className = "" }: { title: string, icon: any, children: React.ReactNode, className?: string }) => (
-  <div className={`relative overflow-hidden bg-[#121212] border border-[#333] p-4 flex flex-column ${className}`}>
+  <div className={`relative overflow-hidden bg-[#121212] border border-[#333] p-4 flex flex-col ${className}`}>
     <div className="flex items-center justify-between mb-4 border-b border-[#333] pb-2">
       <div className="flex items-center gap-2">
         <Icon size={16} className="text-blue-400" />
@@ -102,6 +133,7 @@ export default function App() {
     const fetchData = async () => {
       try {
         const res = await fetch('/api/stats');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         setStats(data);
         setHistory(prev => [...prev.slice(-20), { 
@@ -152,6 +184,7 @@ export default function App() {
           <div>
             <div className="text-[10px] text-gray-500 uppercase font-bold">Status</div>
             <div className="text-xs text-yellow-400">PASSIVE_MONITOR</div>
+            <div className="text-[9px] text-gray-600 uppercase">{stats.mode}</div>
           </div>
         </div>
       </header>
@@ -223,6 +256,7 @@ export default function App() {
                         <th className="py-2 px-3 font-normal">BSSID</th>
                         <th className="py-2 px-3 font-normal">CH</th>
                         <th className="py-2 px-3 font-normal">RSSI</th>
+                        <th className="py-2 px-3 font-normal">Vendor</th>
                         <th className="py-2 px-3 font-normal">Security</th>
                       </tr>
                     </thead>
@@ -237,6 +271,7 @@ export default function App() {
                           <td className="py-3 px-3">
                             <span className={`font-mono ${ap.rssi > -60 ? 'text-green-500' : 'text-gray-500'}`}>{ap.rssi}</span>
                           </td>
+                          <td className="py-3 px-3 text-gray-500 text-[10px]">{ap.vendor || 'Unknown'}</td>
                           <td className="py-3 px-3 text-gray-500 italic text-[10px]">{ap.crypto}</td>
                         </tr>
                       ))}
@@ -290,15 +325,17 @@ export default function App() {
                   <div className="mt-4 grid grid-cols-3 gap-2 text-[10px] text-center">
                     <div className="p-2 border border-[#333] rounded">
                       <div className="text-gray-500 uppercase">Night-Only APs</div>
-                      <div className="text-blue-400 font-bold mt-1">LOG_PENDING</div>
+                      <div className="text-blue-400 font-bold mt-1">{stats.summary.night_owl_count}</div>
                     </div>
                     <div className="p-2 border border-[#333] rounded">
                       <div className="text-gray-500 uppercase">Ghost Signals</div>
-                      <div className="text-purple-400 font-bold mt-1">LOG_PENDING</div>
+                      <div className="text-purple-400 font-bold mt-1">{stats.summary.ghost_network_count}</div>
                     </div>
                     <div className="p-2 border border-[#333] rounded">
                       <div className="text-gray-500 uppercase">Peak Air Traffic</div>
-                      <div className="text-yellow-400 font-bold mt-1">--:--</div>
+                      <div className="text-yellow-400 font-bold mt-1">
+                        {history.reduce((peak, point) => point.aps + point.probes > peak.total ? { time: point.time, total: point.aps + point.probes } : peak, { time: '--:--', total: -1 }).time}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -307,16 +344,48 @@ export default function App() {
 
             {activeGame === 'deauth' ? (
               <Widget title="Attack Surface Monitor" icon={AlertTriangle} className="lg:col-span-2">
-                <div className="bg-red-500/10 border border-red-500/30 p-4 mb-4">
+                <div className={`${stats.summary.deauth_group_count ? 'bg-red-500/10 border-red-500/30' : 'bg-blue-500/5 border-blue-500/20'} border p-4 mb-4`}>
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="w-2 h-2 bg-red-500 rounded-full animate-ping" />
-                    <span className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Spectral Violation Alert</span>
+                    <div className={`w-2 h-2 ${stats.summary.deauth_group_count ? 'bg-red-500 animate-ping' : 'bg-blue-500'} rounded-full`} />
+                    <span className={`text-[10px] ${stats.summary.deauth_group_count ? 'text-red-500' : 'text-blue-400'} font-bold uppercase tracking-widest`}>
+                      {stats.summary.deauth_group_count ? 'Deauth Activity Observed' : 'No Deauth Spike In Current Window'}
+                    </span>
                   </div>
-                  <p className="text-[11px] text-gray-300">Management frame protection (802.11w) not detected on targeting BSSID. Disassociation injection highly probable.</p>
+                  <p className="text-[11px] text-gray-300">Passive management-frame telemetry only. Active mitigation remains gated by lab configuration.</p>
                 </div>
-                {/* Visualizer for Deauth Spikes could go here */}
-                <div className="text-center py-20 text-gray-700 text-[10px] uppercase font-bold border-2 border-dashed border-[#222]">
-                  No massive spikes detected in current bucket
+                <div className="space-y-2">
+                  {stats.deauth_stats.length ? stats.deauth_stats.map((row) => (
+                    <div key={row.bssid} className="flex items-center justify-between border border-[#222] bg-[#0d0d0d] p-3 text-[10px]">
+                      <span className="font-mono text-gray-400">{row.bssid}</span>
+                      <span className="text-red-400 font-bold">{row.count} frames</span>
+                      <span className="text-gray-600">{formatTimestamp(row.last)}</span>
+                    </div>
+                  )) : (
+                    <div className="text-center py-16 text-gray-700 text-[10px] uppercase font-bold border-2 border-dashed border-[#222]">
+                      Current deauth bucket empty
+                    </div>
+                  )}
+                </div>
+              </Widget>
+            ) : null}
+
+            {activeGame === 'audit' ? (
+              <Widget title="Rogue AP Review" icon={Eye}>
+                <div className="space-y-2">
+                  {stats.rogue_aps.length ? stats.rogue_aps.map((ap) => (
+                    <div key={ap.bssid} className="p-3 border border-red-500/30 bg-red-500/5">
+                      <div className="flex items-center justify-between text-[10px] uppercase">
+                        <span className="text-red-400 font-bold">{ap.ssid}</span>
+                        <span className="text-gray-500">CH {ap.channel}</span>
+                      </div>
+                      <div className="font-mono text-[10px] text-gray-400 mt-2">{ap.bssid}</div>
+                      <div className="text-[9px] text-gray-600 mt-1">{ap.crypto || 'Unknown security'} // {ap.rssi}dBm</div>
+                    </div>
+                  )) : (
+                    <div className="text-center py-12 text-gray-700 text-[10px] uppercase font-bold border-2 border-dashed border-[#222]">
+                      No rogue AP rows for watched BSSID set
+                    </div>
+                  )}
                 </div>
               </Widget>
             ) : null}
@@ -372,7 +441,7 @@ export default function App() {
                         <span className={`font-bold ${
                           alert.severity === 'critical' ? 'text-red-400' : 'text-blue-400'
                         }`}>{alert.type}</span>
-                        <span className="text-gray-500 font-mono">{format(new Date(alert.timestamp), 'HH:mm')}</span>
+                        <span className="text-gray-500 font-mono">{formatTimestamp(alert.timestamp)}</span>
                       </div>
                       <div className="text-gray-400 leading-tight">{alert.msg}</div>
                     </motion.div>
@@ -407,8 +476,27 @@ export default function App() {
                    </div>
                  </div>
                  <div className="p-3 bg-[#0d0d0d] border border-[#222] rounded">
-                    <div className="text-[9px] text-gray-600 uppercase font-bold mb-1">Anomaly Engine</div>
-                    <div className="text-[11px] text-blue-400/80 italic font-medium">IsolationForest model status: <span className="text-green-500">Nominal</span></div>
+                   <div className="text-[9px] text-gray-600 uppercase font-bold mb-1">Anomaly Engine</div>
+                    <div className="text-[11px] text-blue-400/80 italic font-medium">
+                      IsolationForest model status: <span className={stats.anomaly_model.loaded ? 'text-green-500' : 'text-yellow-500'}>{stats.anomaly_model.status}</span>
+                    </div>
+                    <div className="text-[9px] text-gray-600 mt-1">
+                      Samples: {stats.anomaly_model.sample_count || 0} // Trained: {stats.anomaly_model.trained_at || 'not yet'}
+                    </div>
+                 </div>
+                 <div className="grid grid-cols-3 gap-2 text-center">
+                   <div className="p-2 bg-[#0d0d0d] border border-[#222] rounded">
+                     <div className="text-[9px] text-gray-600 uppercase">Rogue</div>
+                     <div className="text-[13px] text-red-400 font-bold">{stats.summary.rogue_ap_count}</div>
+                   </div>
+                   <div className="p-2 bg-[#0d0d0d] border border-[#222] rounded">
+                     <div className="text-[9px] text-gray-600 uppercase">Deauth</div>
+                     <div className="text-[13px] text-yellow-400 font-bold">{stats.summary.deauth_group_count}</div>
+                   </div>
+                   <div className="p-2 bg-[#0d0d0d] border border-[#222] rounded">
+                     <div className="text-[9px] text-gray-600 uppercase">RID</div>
+                     <div className="text-[13px] text-blue-400 font-bold">{stats.summary.remote_id_alert_count}</div>
+                   </div>
                  </div>
                </div>
             </Widget>
@@ -421,7 +509,7 @@ export default function App() {
         <div className="flex gap-6 items-center">
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-            <span className="text-gray-500">Capture Engine: Live</span>
+            <span className="text-gray-500">Capture Engine: {stats.mode === 'passive' ? 'Passive' : stats.mode}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
@@ -435,4 +523,3 @@ export default function App() {
     </div>
   );
 }
-

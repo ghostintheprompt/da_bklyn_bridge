@@ -15,17 +15,24 @@
 - Added deterministic synthetic lab pcap generator.
 - Added redacted report bundle exporter with config hash and DB summary.
 - Added integration tests for synthetic pcap replay and report bundle generation.
+- Added redacted `stats_snapshot.json` to report bundles for machine-readable review.
+- Added anomaly model lifecycle: offline training CLI, persisted model pickle, metadata JSON, model status API/dashboard exposure.
+- Added pluggable OUI CSV loading via `SENTINEL_OUI_CSV` while keeping the static fallback map.
+- Added structured Remote ID vendor-tag marker extraction for lab validation.
+- Wired dashboard views for rogue APs, deauth stats, night owls, ghost networks, vendor names, and anomaly model status.
+- Added `/api/health` and richer `/api/stats` summary fields.
+- Tightened release packaging excludes and added release manifest generation.
+- Added tests for OUI CSV loading, Remote ID marker extraction, anomaly metadata, and redacted report snapshots.
 
 ## Still Open
 
-- Full IEEE OUI database instead of small static vendor map.
-- Real Remote ID parser beyond marker detection.
-- Proper anomaly model lifecycle: train, persist metadata, show confidence, retest drift.
+- Bundled/licensed full IEEE OUI database or approved download/update workflow.
+- Real Remote ID parser beyond lab marker extraction.
+- Production anomaly lifecycle across owned field data: curated baseline sets, confidence display, drift retest cadence, and model review notes.
 - More complete Wi-Fi 6/7 parsing and 6 GHz hardware profile.
-- Dashboard wiring for deauth stats, rogue APs, night owls, and ghost networks.
 - Curated real lab pcaps captured from owned hardware after trusted access is approved.
 - Optional dashboard screenshot capture for report bundles.
-- Packaging profile that excludes `node_modules`, `.DS_Store`, and local DB files.
+- Signed/versioned release artifact workflow after packaging requirements are settled.
 
 ## Risk Notes
 

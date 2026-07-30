@@ -123,6 +123,65 @@ def markdown_table(headers, rows, redactor):
     return "\n".join(lines)
 
 
+def redact_nested(value, redactor):
+    if isinstance(value, dict):
+        return {key: redact_nested(item, redactor) for key, item in value.items()}
+    if isinstance(value, list):
+        return [redact_nested(item, redactor) for item in value]
+    if isinstance(value, (int, float, bool)) or value is None:
+        return value
+    return redactor.text(value)
+
+
+def build_stats_snapshot(conn, config):
+    counts = {
+        "aps": table_count(conn, "aps"),
+        "probes": table_count(conn, "probes"),
+        "deauths": table_count(conn, "deauths"),
+        "alerts": table_count(conn, "alerts"),
+    }
+    return {
+        "counts": counts,
+        "rogue_aps": configured_rogue_aps(conn, config),
+        "deauth_stats": fetch_rows(
+            conn,
+            """
+            SELECT bssid, COUNT(*) AS frame_count, MIN(timestamp) AS first_seen, MAX(timestamp) AS last_seen
+            FROM deauths
+            GROUP BY bssid
+            ORDER BY frame_count DESC
+            """,
+        ),
+        "recent_alerts": fetch_rows(
+            conn,
+            """
+            SELECT timestamp, type, severity, msg
+            FROM alerts
+            ORDER BY timestamp DESC
+            LIMIT 20
+            """,
+        ),
+        "recent_aps": fetch_rows(
+            conn,
+            """
+            SELECT ssid, bssid, channel, rssi, crypto, last_seen
+            FROM aps
+            ORDER BY last_seen DESC
+            LIMIT 20
+            """,
+        ),
+        "recent_probes": fetch_rows(
+            conn,
+            """
+            SELECT mac, ssid, rssi, timestamp
+            FROM probes
+            ORDER BY timestamp DESC
+            LIMIT 20
+            """,
+        ),
+    }
+
+
 def build_summary(db_path, config_path, conn, config, config_hash, redactor):
     counts = {
         "aps": table_count(conn, "aps"),
@@ -252,19 +311,22 @@ def build_report_bundle(db_path, config_path, out_dir="report_bundle", redact=Tr
     conn = open_db(db_path)
     try:
         summary_md, manifest_summary = build_summary(db_path, config_path, conn, config, config_hash, redactor)
+        stats_snapshot = redact_nested(build_stats_snapshot(conn, config), redactor)
     finally:
         conn.close()
 
     summary_path = bundle_dir / "SUMMARY.md"
     manifest_path = bundle_dir / "manifest.json"
+    snapshot_path = bundle_dir / "stats_snapshot.json"
     summary_path.write_text(summary_md, encoding="utf-8")
+    snapshot_path.write_text(json.dumps(stats_snapshot, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     manifest = {
         **manifest_summary,
         "database_path": str(Path(db_path).resolve()),
         "config_path": str(Path(config_path).resolve()),
         "config_sha256": config_hash,
-        "files": ["SUMMARY.md", "manifest.json"],
+        "files": ["SUMMARY.md", "manifest.json", "stats_snapshot.json"],
     }
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return bundle_dir, manifest

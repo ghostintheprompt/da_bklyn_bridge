@@ -46,9 +46,18 @@ Offline validation:
 ```bash
 python3 generate_lab_pcap.py --out /tmp/bridge_lab_validation.pcap --write-config /tmp/bridge_lab_config.yaml
 SENTINEL_ALLOW_INSECURE_DB=1 python3 replay_pcap.py /tmp/bridge_lab_validation.pcap --db /tmp/bridge_replay.db --config /tmp/bridge_lab_config.yaml
+SENTINEL_ALLOW_INSECURE_DB=1 python3 train_anomaly_model.py --db /tmp/bridge_replay.db --model-dir /tmp/bridge_models --min-samples 2
 SENTINEL_ALLOW_INSECURE_DB=1 python3 report_bundle.py --db /tmp/bridge_replay.db --config /tmp/bridge_lab_config.yaml --out /tmp/bridge_reports
 python3 -m unittest discover -s tests
 ```
+
+OUI enrichment:
+
+```bash
+export SENTINEL_OUI_CSV=/path/to/oui.csv
+```
+
+The anomaly trainer writes `anomaly_model.pkl` and `anomaly_metadata.json` to the selected model directory when ML dependencies are available.
 
 ---
 *Educational and Forensic use only. UIP V1.5 Compliant.*

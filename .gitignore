@@ -12,9 +12,19 @@ env/
 
 # Forensic Data (Protected)
 *.db
+*.sqlite
+*.sqlite3
 *.pcap
+*.pcapng
 *.log
 sentinel.db
+replay_sentinel.db
+lab_validation.pcap
+report_bundle/
+reports/
+python_tool/models/
+da-bklyn-bridge-v*/
+da-bklyn-bridge-v*.tar.gz
 
 # OS Files
 .DS_Store

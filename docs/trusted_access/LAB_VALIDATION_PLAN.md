@@ -40,6 +40,7 @@ Recommended no-RF smoke test:
 cd python_tool
 python3 generate_lab_pcap.py --out /tmp/bridge_lab_validation.pcap --write-config /tmp/bridge_lab_config.yaml
 SENTINEL_ALLOW_INSECURE_DB=1 python3 replay_pcap.py /tmp/bridge_lab_validation.pcap --db /tmp/bridge_replay.db --config /tmp/bridge_lab_config.yaml
+SENTINEL_ALLOW_INSECURE_DB=1 python3 train_anomaly_model.py --db /tmp/bridge_replay.db --model-dir /tmp/bridge_models --min-samples 2
 SENTINEL_ALLOW_INSECURE_DB=1 python3 report_bundle.py --db /tmp/bridge_replay.db --config /tmp/bridge_lab_config.yaml --out /tmp/bridge_reports
 ```
 
@@ -51,7 +52,18 @@ Expected minimum results:
 | AP rows | 3 or more |
 | Probe rows | 1 |
 | Alert rows | Rogue AP, deauth spike, EAPOL handshake, high-entropy vendor tag |
-| Report bundle | `SUMMARY.md` and `manifest.json` |
+| Anomaly metadata | `anomaly_model.pkl` and `anomaly_metadata.json` when ML deps are available |
+| Report bundle | `SUMMARY.md`, `manifest.json`, and `stats_snapshot.json` |
+
+## Vendor Lookup Validation
+
+Optional full OUI lookup:
+
+```bash
+export SENTINEL_OUI_CSV=/path/to/oui.csv
+```
+
+Supported CSV shapes are documented in `python_tool/data/OUI_README.md`.
 
 ## Active Mitigation Gate Validation
 
@@ -73,6 +85,8 @@ Do not transmit frames unless operating inside an isolated lab with written appr
 - Test command log.
 - Replay output.
 - Report bundle summary and manifest.
+- Redacted `stats_snapshot.json`.
+- Anomaly metadata JSON.
 - Unit test output.
 - Dashboard screenshot.
 - Database export or selected redacted rows.

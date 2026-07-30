@@ -62,6 +62,7 @@ Preferred validation method before trusted access:
 cd python_tool
 python3 generate_lab_pcap.py --out /tmp/bridge_lab_validation.pcap --write-config /tmp/bridge_lab_config.yaml
 SENTINEL_ALLOW_INSECURE_DB=1 python3 replay_pcap.py /tmp/bridge_lab_validation.pcap --db /tmp/bridge_replay.db --config /tmp/bridge_lab_config.yaml
+SENTINEL_ALLOW_INSECURE_DB=1 python3 train_anomaly_model.py --db /tmp/bridge_replay.db --model-dir /tmp/bridge_models --min-samples 2
 SENTINEL_ALLOW_INSECURE_DB=1 python3 report_bundle.py --db /tmp/bridge_replay.db --config /tmp/bridge_lab_config.yaml --out /tmp/bridge_reports
 python3 -m unittest discover -s tests
 ```
@@ -79,4 +80,6 @@ This exercises parser, alert, and report logic without setting monitor mode, hop
 - No hardcoded secret is required for operation.
 - Outbound update checks disabled by default.
 - Evidence examples are redacted and reproducible.
-- Report bundle includes config hash, table counts, rogue AP review, deauth summary, recent alerts, and redacted AP/probe samples.
+- Report bundle includes config hash, table counts, rogue AP review, deauth summary, recent alerts, redacted AP/probe samples, and `stats_snapshot.json`.
+- Anomaly model status is persisted in metadata and exposed to API/dashboard consumers.
+- Optional OUI enrichment can use `SENTINEL_OUI_CSV` without modifying code.

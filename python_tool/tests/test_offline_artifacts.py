@@ -10,6 +10,7 @@ sys.path.insert(0, str(ROOT))
 from generate_lab_pcap import generate_lab_pcap, write_lab_config
 from replay_pcap import replay_pcap
 from report_bundle import build_report_bundle
+from train_anomaly_model import train_model
 
 
 class OfflineArtifactTests(unittest.TestCase):
@@ -55,13 +56,30 @@ class OfflineArtifactTests(unittest.TestCase):
         summary = (bundle_dir / "SUMMARY.md").read_text(encoding="utf-8")
 
         self.assertTrue((bundle_dir / "manifest.json").exists())
+        self.assertTrue((bundle_dir / "stats_snapshot.json").exists())
         self.assertEqual(manifest["counts"]["aps"], 3)
         self.assertGreaterEqual(manifest["counts"]["alerts"], 4)
         self.assertEqual(manifest["rogue_ap_rows"], 1)
+        self.assertIn("stats_snapshot.json", manifest["files"])
         self.assertTrue(manifest["redacted"])
         self.assertIn("ROGUE_AP_DETECTED", summary)
         self.assertIn("MAC_", summary)
         self.assertNotIn("AA:BB:CC:DD:EE:99", summary)
+
+    def test_anomaly_training_reports_status_for_small_lab_sample(self):
+        generate_lab_pcap(self.pcap_path)
+        write_lab_config(self.config_path)
+        _, db = replay_pcap(self.pcap_path, self.db_path, self.config_path)
+        db.conn.close()
+
+        model_dir = self.base / "models"
+        status = train_model(self.db_path, model_dir, min_samples=2)
+
+        self.assertIn(status["status"], {"trained", "ml_unavailable"})
+        if status["status"] == "trained":
+            self.assertTrue((model_dir / "anomaly_model.pkl").exists())
+            self.assertTrue((model_dir / "anomaly_metadata.json").exists())
+            self.assertGreaterEqual(status["sample_count"], 2)
 
 
 if __name__ == "__main__":
