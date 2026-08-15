@@ -1,13 +1,13 @@
 # Da Bklyn Bridge - Monitoring Engine & Forensic Core
 
-The backend engine for Da Bklyn Bridge is a Python-based spectral analysis suite designed for the **Alfa AWUS036ACH** chipset.
+The backend engine for Da Bklyn Bridge is a Python-based 802.11 monitoring suite designed for Alfa-class USB adapters running inside Linux monitor mode.
 
 ## 🛰️ Ghost-Protocol Core Capabilities
 - **Actor Fingerprinting**: Uses `IsolationForest` and SSID history clustering to correlate persistent actors even when they utilize MAC randomization (Locally Administered Addresses).
 - **Entropy-Based Exfiltration Detection**: Automatically audits `802.11` management frame tags for high-entropy payloads, flagging potential covert exfiltration channels.
-- **Active Bridge Mode**: Programmatic perimeter defense via targeted disassociation injection. Enable with the `--arm` flag to neutralize Rogue APs in real-time.
-- **Driver-Stack Integrity**: Monitoring thread that heartbeats the `rtl8812au` driver to ensure monitor mode is not silently disabled by kernel-level hooks.
-- **Encrypted Persistence**: All logs, probes, and captured handshakes are stored in a **SQLCipher-encrypted** SQLite database (`sentinel.db`).
+- **Lab-Gated Bridge Mode**: Programmatic disassociation is real, but remains blocked unless the trusted-access lab gates pass.
+- **Driver-Stack Integrity**: Monitoring thread that heartbeats the selected interface to ensure monitor mode is not silently disabled.
+- **Encrypted Persistence**: SQLCipher is used when available. Local SQLite fallback requires explicit lab/test acknowledgement.
 
 ## 📊 Operational Modes (Operationalized)
 1. **01: Neighborhood Census**: Full AP enumeration including HE/EHT (Wi-Fi 6/7) metadata parsing.
@@ -19,14 +19,22 @@ The backend engine for Da Bklyn Bridge is a Python-based spectral analysis suite
 
 ## 🚀 Execution & Command Line Arguments
 ```bash
-sudo python3 main.py -i <interface> [OPTIONS]
+sudo python3 main.py [-i <interface>] [OPTIONS]
 ```
 
 | Flag | Description |
 | :--- | :--- |
-| `-i, --interface` | **REQUIRED.** Wireless interface in monitor mode (e.g., `wlan0`). |
+| `-i, --interface` | Wireless interface (for example `wlan0`). Autodetected when omitted. |
 | `-c, --config` | Path to custom `config.yaml` (Defines watched SSIDs/BSSIDs). |
+| `--db` | Evidence database path. |
+| `--skip-monitor-setup` | Use an interface already placed in monitor mode. |
 | `--arm` | **DANGER.** Enables Bridge Mode for active disassociation mitigation. |
+
+Prefer the wrapper from the repo root:
+
+```bash
+bash scripts/run_passive.sh --interface wlan0
+```
 
 ## 🔔 SOC Integration
 Standardized Incident IDs are generated for all alerts:
@@ -40,6 +48,7 @@ Standardized Incident IDs are generated for all alerts:
 - Set `SENTINEL_API_TOKEN` to require bearer-token access to `/api/stats`.
 - Update checks are disabled unless `SENTINEL_CHECK_UPDATES=1`.
 - `--arm` does not enable active mitigation unless the config passes lab safety gates.
+- Run `bash scripts/alfa_doctor.sh` inside the Linux VM when USB, driver, or monitor-mode setup is unclear.
 
 Offline validation:
 

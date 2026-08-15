@@ -1,27 +1,36 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig, loadEnv} from 'vite';
+import {fileURLToPath} from 'url';
+import {defineConfig} from 'vite';
 
-export default defineConfig(({mode}) => {
-  const env = loadEnv(mode, '.', '');
+export default defineConfig(() => {
+  const apiTarget = process.env.SENTINEL_PROXY_TARGET || 'http://localhost:5000';
+  const rootDir = path.dirname(fileURLToPath(import.meta.url));
   return {
     plugins: [react(), tailwindcss()],
-    define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-    },
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(rootDir, '.'),
       },
     },
     server: {
       proxy: {
-        '/api': 'http://localhost:5000'
+        '/api': apiTarget
       },
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+      // File watching can be disabled in hosted edit sessions to prevent flicker.
       hmr: process.env.DISABLE_HMR !== 'true',
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            charts: ['recharts', 'd3-array', 'd3-scale', 'd3-shape'],
+            motion: ['motion'],
+          },
+        },
+      },
     },
   };
 });

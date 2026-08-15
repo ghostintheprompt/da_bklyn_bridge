@@ -13,11 +13,14 @@
 
 ## Overview
 
-Da Bklyn Bridge is a wireless security monitoring suite built around Linux monitor mode and the Alfa AWUS036ACH class of adapters. It turns 802.11 management-frame telemetry into local forensic records, SOC-style alerts, dashboard statistics, offline replay evidence, and redacted review bundles.
+Da Bklyn Bridge is a wireless security monitoring suite built around Linux monitor mode and Alfa-class USB adapters. It turns 802.11 management-frame telemetry into local forensic records, SOC-style alerts, dashboard statistics, offline replay evidence, and redacted review bundles.
 
 The current posture is intentionally conservative: passive monitoring by default, localhost API by default, no outbound update checks unless enabled, and active mitigation blocked unless trusted-access lab gates are satisfied. The point is capability with restraint: prove the pipeline locally, document scope, preserve evidence, then operate only where authorization is real.
 
 Use this only on networks, RF environments, devices, and lab equipment you own or are explicitly authorized to test.
+
+Start with `START_HERE.md` when you want the shortest path from Mac + Alfa to
+dashboard.
 
 ## Portfolio Context
 
@@ -56,18 +59,54 @@ This repo is written for the same lane as my current work: red-team pressure tes
 
 ## Quick Start
 
-### 1. Clone And Install
+### 1. App-Like Mac Dashboard
 
 ```bash
 git clone https://github.com/ghostintheprompt/da_bklyn_bridge.git
 cd da_bklyn_bridge
-
-pip3 install -r python_tool/requirements.txt
 npm install
-npm run build
+npm run app
 ```
 
-### 2. Configure Evidence Storage
+If the capture API is running inside the Linux VM:
+
+```bash
+npm run app -- --api http://<VM_IP>:5000
+```
+
+### 2. Prove The Pipeline Without RF
+
+```bash
+npm install
+npm run build
+
+cd python_tool
+python3 -m venv ../.venv
+source ../.venv/bin/activate
+pip install -r requirements.txt
+SENTINEL_ALLOW_INSECURE_DB=1 python3 -m unittest discover -s tests
+```
+
+### 3. M1 Mac + Alfa Path
+
+macOS can run the dashboard, but Alfa monitor-mode capture should run inside a
+small ARM Linux VM with USB passthrough.
+
+```bash
+bash scripts/m1_vm_bootstrap.sh
+bash scripts/alfa_doctor.sh
+```
+
+If your adapter is AWUS036ACH / RTL8812AU, use the optional driver path:
+
+```bash
+bash scripts/m1_vm_bootstrap.sh --rtl8812au --with-aircrack
+bash scripts/alfa_doctor.sh
+```
+
+See `M1_SETUP_GUIDE.md` for the full low-space UTM workflow.
+
+### 4. Configure Evidence Storage
 
 For real evidence work, set an encryption key:
 
@@ -81,22 +120,36 @@ For local replay or unit tests only:
 export SENTINEL_ALLOW_INSECURE_DB=1
 ```
 
-### 3. Run Passive Monitoring
+### 5. Run Passive Monitoring
 
 ```bash
-sudo python3 python_tool/main.py -i wlan0
+bash scripts/run_passive.sh --interface wlan0
 ```
 
-The tool requires root for monitor-mode capture. On macOS, use a Linux VM with USB passthrough; macOS does not expose native Wi-Fi monitor mode for this workflow.
+Omit `--interface` to let the tool autodetect a wireless interface. The wrapper
+will ask for scope confirmation, then elevate with `sudo` for monitor-mode
+capture.
 
-### 4. Run The Local API
+### 6. Run The Local API
 
 ```bash
 export SENTINEL_API_TOKEN="optional-local-token"
-python3 python_tool/api_bridge.py
+bash scripts/run_api.sh
 ```
 
-The frontend reads dashboard state from `/api/stats`, including AP counts, rogue AP counts, deauth groups, temporal buckets, vendor enrichment, Remote ID alerts, and anomaly-model status.
+The frontend reads dashboard state from `/api/stats`, including AP counts,
+rogue AP counts, deauth groups, temporal buckets, vendor enrichment, Remote ID
+alerts, anomaly-model status, and hardware readiness.
+
+For a Mac browser pointed at a VM API:
+
+```bash
+# inside the VM
+bash scripts/run_api.sh --host-vm
+
+# on the Mac
+SENTINEL_PROXY_TARGET=http://<VM_IP>:5000 npm run dev
+```
 
 ## No-RF Validation
 
@@ -135,6 +188,16 @@ Start from `python_tool/config.yaml` and document scope using the trusted-access
 | `SENTINEL_CHECK_UPDATES` | Enable outbound GitHub release checks | unset |
 | `SENTINEL_OUI_CSV` | Optional local OUI CSV enrichment source | unset |
 | `SENTINEL_MODEL_DIR` | Optional anomaly model directory | unset |
+| `SENTINEL_PROXY_TARGET` | Vite dev proxy target for VM API access | `http://localhost:5000` |
+| `VITE_SENTINEL_API_BASE` | Direct browser API base for cross-host dashboard use | unset |
+
+## Low-Space Notes
+
+- Keep `node_modules` on the Mac, not inside the VM, when possible.
+- The default Python requirements are now the lean capture/API set.
+- Optional ML extras live in `python_tool/requirements-ml.txt`.
+- Optional SQLCipher evidence extras live in `python_tool/requirements-evidence.txt`.
+- `scripts/alfa_doctor.sh` tells you whether the problem is USB passthrough, driver support, monitor mode, or Python setup.
 
 ## Trusted Access Packet
 

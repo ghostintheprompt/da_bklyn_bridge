@@ -1,8 +1,10 @@
 import os
 import sys
 import time
+import shutil
 import subprocess
 import argparse
+from pathlib import Path
 from capture import PacketCapturer
 from storage import Database
 from alerting import AlertManager
@@ -12,34 +14,136 @@ from display_cli import SentinelDashboard
 from update_checker import check_for_updates
 from kernel_monitor import KernelMonitor
 
-def setup_monitor_mode(interface):
-    print(f"[*] Attempting to set {interface} to monitor mode...")
+DEFAULT_CONFIG = str(Path(__file__).resolve().with_name("config.yaml"))
+
+
+def run_command(args):
+    return subprocess.run(args, capture_output=True, text=True, check=False)
+
+
+def list_wireless_interfaces():
+    if not shutil.which("iw"):
+        return []
+
+    result = run_command(["iw", "dev"])
+    interfaces = []
+    for line in result.stdout.splitlines():
+        line = line.strip()
+        if line.startswith("Interface "):
+            interfaces.append(line.split()[1])
+    return interfaces
+
+
+def interface_mode(interface):
+    if not shutil.which("iw"):
+        return "unknown"
+
+    result = run_command(["iw", "dev"])
+    current = None
+    for line in result.stdout.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("Interface "):
+            current = stripped.split()[1]
+        elif current == interface and stripped.startswith("type "):
+            return stripped.split()[1]
+    return "unknown"
+
+
+def interface_exists(interface):
+    if not interface:
+        return False
+    if shutil.which("ip"):
+        return run_command(["ip", "link", "show", "dev", interface]).returncode == 0
+    return interface in list_wireless_interfaces()
+
+
+def detect_default_interface(config_path):
+    configured = None
     try:
-        # Modern 'iw' approach
-        subprocess.run(["ip", "link", "set", interface, "down"], check=True)
-        subprocess.run(["iw", interface, "set", "monitor", "none"], check=True)
-        subprocess.run(["ip", "link", "set", interface, "up"], check=True)
-        print(f"[+] {interface} is now in monitor mode.")
-        return True
-    except subprocess.CalledProcessError:
-        print(f"[!] 'iw' failed. Trying 'airmon-ng'...")
-        try:
-            subprocess.run(["airmon-ng", "start", interface], check=True)
-            print(f"[+] airmon-ng started on {interface}")
-            return True
-        except Exception as e:
-            print(f"[!] Failed to set monitor mode: {e}")
-            return False
+        import yaml
+        with open(config_path, "r", encoding="utf-8") as handle:
+            configured = (yaml.safe_load(handle) or {}).get("interface")
+    except (OSError, ImportError, AttributeError):
+        configured = None
+
+    if configured and configured != "wlan0" and interface_exists(configured):
+        return configured
+
+    wireless = list_wireless_interfaces()
+    if wireless:
+        if configured in wireless:
+            return configured
+        for name in wireless:
+            if interface_mode(name) == "monitor":
+                return name
+        return wireless[0]
+
+    return configured if configured and interface_exists(configured) else None
+
+
+def monitor_interfaces():
+    return [name for name in list_wireless_interfaces() if interface_mode(name) == "monitor"]
+
+
+def setup_monitor_mode(interface, skip_setup=False):
+    if skip_setup:
+        print(f"[*] Using {interface} as provided; monitor-mode setup skipped.")
+        return interface
+
+    print(f"[*] Attempting to set {interface} to monitor mode...")
+
+    if interface_mode(interface) == "monitor":
+        print(f"[+] {interface} is already in monitor mode.")
+        return interface
+
+    if shutil.which("ip") and shutil.which("iw"):
+        methods = [
+            ["iw", "dev", interface, "set", "type", "monitor"],
+            ["iw", "dev", interface, "set", "monitor", "control"],
+        ]
+        for method in methods:
+            subprocess.run(["ip", "link", "set", interface, "down"], check=False)
+            result = run_command(method)
+            subprocess.run(["ip", "link", "set", interface, "up"], check=False)
+            if result.returncode == 0:
+                print(f"[+] {interface} is now in monitor mode.")
+                return interface
+
+    if shutil.which("airmon-ng"):
+        print("[!] Direct iw setup failed. Trying airmon-ng fallback...")
+        before = set(list_wireless_interfaces())
+        result = run_command(["airmon-ng", "start", interface])
+        after = set(list_wireless_interfaces())
+        candidates = [f"{interface}mon"] + sorted(after - before) + monitor_interfaces() + [interface]
+        for candidate in candidates:
+            if interface_exists(candidate) and interface_mode(candidate) == "monitor":
+                print(f"[+] airmon-ng started monitor interface {candidate}.")
+                return candidate
+        if result.returncode == 0:
+            print(f"[+] airmon-ng completed. Continuing with {interface}.")
+            return interface
+
+    print("[!] Failed to set monitor mode.")
+    print("[!] Run scripts/alfa_doctor.sh inside the Linux VM for driver and USB passthrough checks.")
+    return None
 
 def main():
-    parser = argparse.ArgumentParser(description="Da Bklyn Bridge - Alfa AWUS036ACH Monitor")
-    parser.add_argument("-i", "--interface", required=True, help="Wireless interface (e.g., wlan0)")
-    parser.add_argument("-c", "--config", default="config.yaml", help="Path to config file")
+    parser = argparse.ArgumentParser(description="Da Bklyn Bridge - Alfa-class passive monitor")
+    parser.add_argument("-i", "--interface", help="Wireless interface (for example wlan0). Autodetected when omitted.")
+    parser.add_argument("-c", "--config", default=DEFAULT_CONFIG, help="Path to config file")
+    parser.add_argument("--db", default="sentinel.db", help="SQLite/SQLCipher database path")
+    parser.add_argument("--skip-monitor-setup", action="store_true", help="Use the interface as-is when monitor mode is already configured")
     parser.add_argument("--arm", action="store_true", help="Phase 4: Enable 'Bridge Mode' for Active Mitigation (Targeted Disassociation)")
     args = parser.parse_args()
 
-    if os.getuid() != 0:
+    if os.geteuid() != 0:
         print("[!] This tool must be run as root for packet capture.")
+        sys.exit(1)
+
+    interface = args.interface or detect_default_interface(args.config)
+    if not interface:
+        print("[!] No wireless interface found.")
+        print("[!] In an M1 VM, confirm the Alfa USB device is passed through, then run scripts/alfa_doctor.sh.")
         sys.exit(1)
 
     # Check for updates only when explicitly enabled. Trusted/lab runs should not
@@ -47,18 +151,19 @@ def main():
     check_for_updates()
 
     # Initial Setup
-    if not setup_monitor_mode(args.interface):
+    monitor_interface = setup_monitor_mode(interface, skip_setup=args.skip_monitor_setup)
+    if not monitor_interface:
         print("[!] Could not initialize monitor mode. Exiting.")
         sys.exit(1)
 
-    db = Database("sentinel.db")
+    db = Database(args.db)
     alert_mgr = AlertManager(db, config_path=args.config)
     remote_id = RemoteIDMonitor(db)
     gps_logger = GPSLogger()
     
     # Phase 4 Integrations
-    kernel_monitor = KernelMonitor(args.interface, alert_mgr)
-    capturer = PacketCapturer(args.interface, db, alert_mgr, remote_id, gps_logger)
+    kernel_monitor = KernelMonitor(monitor_interface, alert_mgr)
+    capturer = PacketCapturer(monitor_interface, db, alert_mgr, remote_id, gps_logger)
     
     if args.arm:
         if not capturer.mitigator.enable():

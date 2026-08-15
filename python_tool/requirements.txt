@@ -1,9 +1,6 @@
 scapy
 rich
 pyyaml
-pandas
-scikit-learn
 flask
 flask-cors
-pysqlcipher3
 requests

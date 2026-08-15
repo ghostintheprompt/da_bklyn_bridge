@@ -37,9 +37,12 @@ cp -r dist/* "$RELEASE_DIR/dist/"
 
 # Copy Core Docs
 cp README.md "$RELEASE_DIR/"
+cp START_HERE.md "$RELEASE_DIR/"
 cp BUILD.md "$RELEASE_DIR/"
+cp M1_SETUP_GUIDE.md "$RELEASE_DIR/"
 cp LICENSE "$RELEASE_DIR/" 2>/dev/null || echo "[!] WARNING: LICENSE file missing."
 cp -r docs "$RELEASE_DIR/" 2>/dev/null || true
+cp -r scripts "$RELEASE_DIR/" 2>/dev/null || true
 find "$RELEASE_DIR" -type f | sort > "$RELEASE_DIR/release_manifest.txt"
 
 # 3. Create Archive
@@ -47,4 +50,4 @@ echo "[*] Creating release archive..."
 tar -czf "$RELEASE_DIR.tar.gz" "$RELEASE_DIR"
 
 echo "[+] Release package created: $RELEASE_DIR.tar.gz"
-echo "[+] Build complete. Ready for GitHub Release v1.0.0."
+echo "[+] Build complete. Ready for GitHub Release v${VERSION}."

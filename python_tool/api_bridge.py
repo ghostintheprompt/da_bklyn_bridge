@@ -1,10 +1,16 @@
 import os
+import platform
+import shutil
+import subprocess
+from pathlib import Path
 import yaml
 from flask import Flask, jsonify, request, abort
 from flask_cors import CORS
 from storage import Database
 from analysis import AnomalyDetector
 from vendors import resolve_vendor
+
+DEFAULT_CONFIG = str(Path(__file__).resolve().with_name("config.yaml"))
 
 app = Flask(__name__)
 CORS(
@@ -24,6 +30,15 @@ CORS(
 )
 db = Database("sentinel.db")
 
+
+def command_output(args):
+    try:
+        result = subprocess.run(args, capture_output=True, text=True, check=False)
+    except OSError:
+        return "", 127
+    return result.stdout.strip(), result.returncode
+
+
 def require_api_token():
     token = os.environ.get("SENTINEL_API_TOKEN")
     if not token:
@@ -32,7 +47,7 @@ def require_api_token():
     if auth != f"Bearer {token}":
         abort(401)
 
-def load_runtime_config(config_path="config.yaml"):
+def load_runtime_config(config_path=DEFAULT_CONFIG):
     interface = "wlan0" # Default
     config = {}
     if os.path.exists(config_path):
@@ -42,7 +57,87 @@ def load_runtime_config(config_path="config.yaml"):
     return config, interface
 
 
-def build_stats(config_path="config.yaml"):
+def iw_interface_mode(interface):
+    if not shutil.which("iw"):
+        return "unknown"
+    stdout, _ = command_output(["iw", "dev"])
+    current = None
+    for line in stdout.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("Interface "):
+            current = stripped.split()[1]
+        elif current == interface and stripped.startswith("type "):
+            return stripped.split()[1]
+    return "unknown"
+
+
+def interface_present(interface):
+    if not interface:
+        return False
+    if shutil.which("ip"):
+        _, code = command_output(["ip", "link", "show", "dev", interface])
+        return code == 0
+    return Path("/sys/class/net", interface).exists()
+
+
+def interface_driver(interface):
+    driver_link = Path("/sys/class/net") / interface / "device" / "driver"
+    try:
+        if driver_link.exists():
+            return Path(os.path.realpath(driver_link)).name
+    except OSError:
+        return "unknown"
+    return "unknown"
+
+
+def usb_adapter_hints():
+    if not shutil.which("lsusb"):
+        return []
+    stdout, _ = command_output(["lsusb"])
+    hints = []
+    keywords = ("alfa", "realtek", "mediatek", "ralink", "atheros", "qualcomm", "802.11", "wireless", "wlan")
+    for line in stdout.splitlines():
+        if any(keyword in line.lower() for keyword in keywords):
+            hints.append(line)
+    return hints[:6]
+
+
+def chipset_hint(driver, usb_hints):
+    text = " ".join([driver] + usb_hints).lower()
+    if "8812" in text or "88xxau" in text or "rtl88" in text:
+        return "Realtek RTL8812AU/88xxAU class"
+    if "7612" in text or "mt76" in text or "mediatek" in text:
+        return "MediaTek MT76 class"
+    if "9271" in text or "ath9k" in text or "atheros" in text:
+        return "Atheros AR9271 class"
+    if driver and driver != "unknown":
+        return driver
+    return "unknown"
+
+
+def build_hardware_status(interface):
+    driver = interface_driver(interface)
+    usb_hints = usb_adapter_hints()
+    mode = iw_interface_mode(interface)
+    present = interface_present(interface)
+    system = platform.system()
+    machine = platform.machine()
+
+    return {
+        "interface_present": present,
+        "interface": interface,
+        "mode": mode,
+        "monitor_mode": mode == "monitor",
+        "driver": driver,
+        "chipset_hint": chipset_hint(driver, usb_hints),
+        "usb_hints": usb_hints,
+        "platform": f"{system} {machine}".strip(),
+        "apple_silicon_vm": system == "Linux" and machine in {"aarch64", "arm64"},
+        "doctor": "scripts/alfa_doctor.sh",
+    }
+
+
+def build_stats(config_path=DEFAULT_CONFIG):
     config, interface = load_runtime_config(config_path)
 
     aps = db.get_recent_aps(limit=50)
@@ -60,6 +155,7 @@ def build_stats(config_path="config.yaml"):
         "interface": interface,
         "mode": config.get("operation_mode", "passive"),
         "channel": 1,  # Placeholder for current channel
+        "hardware": build_hardware_status(interface),
         "summary": {
             "ap_count": len(aps),
             "probe_count": len(probes),
@@ -99,12 +195,14 @@ def build_stats(config_path="config.yaml"):
 def get_health():
     require_api_token()
     config, interface = load_runtime_config()
+    hardware = build_hardware_status(interface)
     return jsonify({
         "status": "ok",
         "interface": interface,
         "mode": config.get("operation_mode", "passive"),
         "api_host": os.environ.get("SENTINEL_API_HOST", "127.0.0.1"),
         "token_required": bool(os.environ.get("SENTINEL_API_TOKEN")),
+        "hardware": hardware,
     })
 
 
