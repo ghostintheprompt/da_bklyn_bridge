@@ -87,24 +87,24 @@ pip install -r requirements.txt
 SENTINEL_ALLOW_INSECURE_DB=1 python3 -m unittest discover -s tests
 ```
 
-### 3. M1 Mac + Alfa Path
+### 3. Apple Silicon Mac + Alfa Path
 
 macOS can run the dashboard, but Alfa monitor-mode capture should run inside a
 small ARM Linux VM with USB passthrough.
 
 ```bash
-bash scripts/m1_vm_bootstrap.sh
+bash scripts/apple_silicon_vm_bootstrap.sh
 bash scripts/alfa_doctor.sh
 ```
 
 If your adapter is AWUS036ACH / RTL8812AU, use the optional driver path:
 
 ```bash
-bash scripts/m1_vm_bootstrap.sh --rtl8812au --with-aircrack
+bash scripts/apple_silicon_vm_bootstrap.sh --rtl8812au --with-aircrack
 bash scripts/alfa_doctor.sh
 ```
 
-See `M1_SETUP_GUIDE.md` for the full low-space UTM workflow.
+See `APPLE_SILICON_SETUP_GUIDE.md` for the M4-tuned UTM workflow.
 
 ### 4. Configure Evidence Storage
 

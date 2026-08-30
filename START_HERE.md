@@ -28,7 +28,7 @@ npm run app -- --api http://<VM_IP>:5000
 Inside the Linux VM:
 
 ```bash
-bash scripts/m1_vm_bootstrap.sh --rtl8812au --with-aircrack
+bash scripts/apple_silicon_vm_bootstrap.sh --rtl8812au --with-aircrack
 bash scripts/alfa_doctor.sh
 bash scripts/run_passive.sh --interface wlan0
 ```

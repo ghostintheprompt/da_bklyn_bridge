@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lightweight Linux VM bootstrap for Apple Silicon hosts.
+# Lightweight Linux VM bootstrap for Apple-silicon hosts.
 
 set -euo pipefail
 
@@ -11,13 +11,13 @@ WITH_EVIDENCE=0
 
 usage() {
   cat <<'USAGE'
-Usage: scripts/m1_vm_bootstrap.sh [options]
+Usage: scripts/apple_silicon_vm_bootstrap.sh [options]
 
 Run this inside the ARM Linux VM, not on macOS.
 
 Options:
   --rtl8812au       Install Realtek RTL8812AU/88xxAU DKMS support for AWUS036ACH-class adapters.
-  --with-aircrack   Install aircrack-ng tools for monitor fallback and trusted-access lab work.
+  --with-aircrack   Install aircrack-ng tools for monitor fallback and authorized lab work.
   --with-ml         Install optional pandas/scikit-learn anomaly training requirements.
   --with-evidence   Install optional SQLCipher Python binding for encrypted evidence DBs.
   -h, --help        Show this help.
@@ -36,7 +36,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ "$(uname -s)" == "Darwin" ]]; then
-  echo "[!] This bootstrap is for the Linux VM. On macOS, install UTM and pass the Alfa USB device into the VM."
+  echo "[!] This bootstrap runs inside the ARM Linux VM. On macOS, install UTM and pass the Alfa USB device into the VM."
   exit 1
 fi
 

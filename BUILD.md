@@ -62,7 +62,7 @@ npm install
 npm run build
 ```
 
-## macOS Installation (M1/M2/M3/M4)
+## macOS Installation (Apple Silicon)
 
 macOS does not support USB Wi-Fi monitor mode natively. To use Da Bklyn Bridge on a Mac:
 
@@ -72,7 +72,7 @@ macOS does not support USB Wi-Fi monitor mode natively. To use Da Bklyn Bridge o
 4. **Run the doctor:** `bash scripts/alfa_doctor.sh`
 5. **Run passive capture:** `bash scripts/run_passive.sh --interface wlan0`
 
-See `M1_SETUP_GUIDE.md` for the low-space path.
+See `APPLE_SILICON_SETUP_GUIDE.md` for the current M4/Apple-silicon path.
 
 ## Troubleshooting
 

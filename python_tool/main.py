@@ -143,7 +143,7 @@ def main():
     interface = args.interface or detect_default_interface(args.config)
     if not interface:
         print("[!] No wireless interface found.")
-        print("[!] In an M1 VM, confirm the Alfa USB device is passed through, then run scripts/alfa_doctor.sh.")
+        print("[!] In the Apple-silicon ARM VM, confirm the Alfa USB device is passed through, then run scripts/alfa_doctor.sh.")
         sys.exit(1)
 
     # Check for updates only when explicitly enabled. Trusted/lab runs should not

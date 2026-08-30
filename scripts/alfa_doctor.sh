@@ -139,7 +139,7 @@ if [[ -x "$PYTHON_BIN" ]]; then
 elif [[ "$HOST_OS" == "Darwin" ]]; then
   PYTHON_BIN=""
   warn "project .venv not found; skipping capture Python imports on macOS host"
-  warn "Run scripts/m1_vm_bootstrap.sh inside the Linux VM to build the capture stack."
+  warn "Run scripts/apple_silicon_vm_bootstrap.sh inside the Linux VM to build the capture stack."
 elif have python3; then
   PYTHON_BIN="python3"
   warn "project .venv not found; checking system python only"

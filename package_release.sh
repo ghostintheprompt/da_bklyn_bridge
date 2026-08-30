@@ -39,7 +39,7 @@ cp -r dist/* "$RELEASE_DIR/dist/"
 cp README.md "$RELEASE_DIR/"
 cp START_HERE.md "$RELEASE_DIR/"
 cp BUILD.md "$RELEASE_DIR/"
-cp M1_SETUP_GUIDE.md "$RELEASE_DIR/"
+cp APPLE_SILICON_SETUP_GUIDE.md "$RELEASE_DIR/"
 cp LICENSE "$RELEASE_DIR/" 2>/dev/null || echo "[!] WARNING: LICENSE file missing."
 cp -r docs "$RELEASE_DIR/" 2>/dev/null || true
 cp -r scripts "$RELEASE_DIR/" 2>/dev/null || true

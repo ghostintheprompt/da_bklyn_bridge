@@ -13,7 +13,7 @@
     "audit": "npm audit --omit=optional",
     "app": "bash scripts/bridge_app.sh",
     "doctor": "bash scripts/alfa_doctor.sh",
-    "vm:bootstrap": "bash scripts/m1_vm_bootstrap.sh",
+    "vm:bootstrap": "bash scripts/apple_silicon_vm_bootstrap.sh",
     "passive": "bash scripts/run_passive.sh",
     "api": "bash scripts/run_api.sh"
   },

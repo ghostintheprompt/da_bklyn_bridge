@@ -221,7 +221,7 @@ const EmptyState = ({label}: {label: string}) => (
 );
 
 const OperationalModes = [
-  {id: 'launch', title: '00: Launch Deck', icon: PlugZap, desc: 'M1 VM, Alfa, API readiness'},
+  {id: 'launch', title: '00: Launch Deck', icon: PlugZap, desc: 'Apple Silicon VM, Alfa, API readiness'},
   {id: 'census', title: '01: Air Census', icon: Radio, desc: 'AP enumeration and signal map'},
   {id: 'probes', title: '02: Probe Watch', icon: Smartphone, desc: 'Client probe telemetry'},
   {id: 'deauth', title: '03: Deauth Watch', icon: AlertTriangle, desc: 'Passive spike detection'},
@@ -273,7 +273,7 @@ const OfflineStart = ({error}: {error: string | null}) => {
 
           <Widget title="Alfa Readiness" icon={PlugZap} accent="green">
             <div className="space-y-2">
-              <CommandCard label="VM Bootstrap" command="bash scripts/m1_vm_bootstrap.sh --rtl8812au --with-aircrack" copied={copied === 'VM Bootstrap'} onCopy={copyCommand} />
+              <CommandCard label="VM Bootstrap" command="bash scripts/apple_silicon_vm_bootstrap.sh --rtl8812au --with-aircrack" copied={copied === 'VM Bootstrap'} onCopy={copyCommand} />
               <CommandCard label="Doctor" command="bash scripts/alfa_doctor.sh" copied={copied === 'Doctor'} onCopy={copyCommand} />
               <CommandCard label="Passive Capture" command="bash scripts/run_passive.sh --interface wlan0 --lab-insecure" copied={copied === 'Passive Capture'} onCopy={copyCommand} />
             </div>
@@ -454,7 +454,7 @@ export default function App() {
                     </div>
                     <div className="grid gap-2 md:grid-cols-2">
                       <CommandCard label="Doctor" command="bash scripts/alfa_doctor.sh" copied={copied === 'Doctor'} onCopy={copyCommand} />
-                      <CommandCard label="Bootstrap ACH" command="bash scripts/m1_vm_bootstrap.sh --rtl8812au --with-aircrack" copied={copied === 'Bootstrap ACH'} onCopy={copyCommand} />
+                      <CommandCard label="Bootstrap ACH" command="bash scripts/apple_silicon_vm_bootstrap.sh --rtl8812au --with-aircrack" copied={copied === 'Bootstrap ACH'} onCopy={copyCommand} />
                       <CommandCard label="Passive Capture" command="bash scripts/run_passive.sh --interface wlan0" copied={copied === 'Passive Capture'} onCopy={copyCommand} />
                       <CommandCard label="VM API" command="bash scripts/run_api.sh --host-vm" copied={copied === 'VM API'} onCopy={copyCommand} />
                     </div>
