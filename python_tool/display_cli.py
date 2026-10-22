@@ -30,7 +30,7 @@ class SentinelDashboard:
         return layout
 
     def generate_ap_table(self):
-        table = Table(title="Nearby Access Points", grow=True)
+        table = Table(title="Nearby Access Points", expand=True)
         table.add_column("BSSID", style="cyan")
         table.add_column("SSID", style="magenta")
         table.add_column("Ch", style="green")
@@ -43,7 +43,7 @@ class SentinelDashboard:
         return table
 
     def generate_probe_table(self):
-        table = Table(title="Recent Probe Requests", grow=True)
+        table = Table(title="Recent Probe Requests", expand=True)
         table.add_column("MAC", style="cyan")
         table.add_column("Vendor", style="dim")
         table.add_column("SSID", style="magenta")
