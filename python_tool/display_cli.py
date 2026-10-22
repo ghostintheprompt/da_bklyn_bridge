@@ -53,7 +53,7 @@ class SentinelDashboard:
         probes = self.db.get_recent_probes(limit=10)
         for p in probes:
             vendor = resolve_vendor(p[1])
-            table.add_row(p[1], vendor, p[2], str(p[3]), p[4])
+            table.add_row(p[1], vendor, p[2], str(p[3]), str(p[-1]))
         return table
 
     def generate_alert_panel(self):
