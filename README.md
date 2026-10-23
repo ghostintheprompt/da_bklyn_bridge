@@ -46,6 +46,8 @@ This repo is written for the same lane as my current work: red-team pressure tes
 | Offline validation | `generate_lab_pcap.py`, `replay_pcap.py` | Real no-RF replay path |
 | Report bundle | `report_bundle.py` | Redacted local output for review packets |
 | Active mitigation | `active_mitigation.py` | Scoped targeted deauth; fires only at in-scope BSSIDs with `--arm` |
+| Offensive wireless ops | `wireless_ops.py` | Scoped `capture` / `wps` / `eviltwin` / `ble`, orchestrates the standard tools (airodump, reaver, eaphammer, hcxtools, hashcat), prints each command as it runs, enforces ROE scope |
+| Findings export | `findings_report.py` | Turns detections into an engagement findings section (severity, ATT&CK/ATLAS mapping, evidence, remediation) |
 
 ## Operating Model
 
