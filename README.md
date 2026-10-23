@@ -3,7 +3,7 @@
 
 # Da Bklyn Bridge
 
-**Passive-first wireless monitoring, trusted-access lab readiness, and red/blue signal discipline.**
+**Authorized wireless red-team tooling: recon, detection, and engagement-scoped active mitigation.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform: Linux](https://img.shields.io/badge/Platform-Linux-orange.svg)](BUILD.md)
@@ -15,7 +15,7 @@
 
 Da Bklyn Bridge is a wireless security monitoring suite built around Linux monitor mode and Alfa-class USB adapters. It turns 802.11 management-frame telemetry into local forensic records, SOC-style alerts, dashboard statistics, offline replay evidence, and redacted review bundles.
 
-The current posture is intentionally conservative: passive monitoring by default, localhost API by default, no outbound update checks unless enabled, and active mitigation blocked unless trusted-access lab gates are satisfied. The point is capability with restraint: prove the pipeline locally, document scope, preserve evidence, then operate only where authorization is real.
+The posture is passive by default: recon and detection transmit nothing. The localhost API stays local, update checks are off unless enabled, and active deauth is off unless you arm it with `--arm` against a declared engagement scope. Capability with scope discipline: the tool only touches what your rules of engagement authorize, enforced in code.
 
 Use this only on networks, RF environments, devices, and lab equipment you own or are explicitly authorized to test.
 
@@ -26,7 +26,7 @@ dashboard.
 
 This repo is written for the same lane as my current work: red-team pressure testing, blue SOC reasoning, and frontier-model security workflows where local evidence and clear authorization matter.
 
-- **Red-team signal:** trusted-access gates, lab-only active mode, adversarial RF thinking, and no-RF replay before live testing.
+- **Red-team signal:** engagement-scoped active deauth, adversarial RF thinking, and no-RF replay to prove the pipeline before live testing.
 - **Blue SOC signal:** incident IDs, local alert records, dashboard metrics, anomaly status, report bundles, and evidence redaction.
 - **Frontier-model security signal:** separates raw evidence from safe review artifacts, avoids surprise egress, treats replay fixtures as test harnesses, and keeps simulated capability distinct from live action.
 - **Professional boundary:** no broad RF disruption, no hidden outbound calls, no production claims without instrumentation, and no active mode outside written scope.
@@ -37,15 +37,14 @@ This repo is written for the same lane as my current work: red-team pressure tes
 | :--- | :--- | :--- |
 | Passive AP/probe capture | `python_tool/capture.py` | Real local monitor-mode capture |
 | SOC alerting | `python_tool/alerting.py` | Real local incident records with `INC-...` IDs |
-| Actor correlation | `python_tool/analysis.py` | Local SSID history and anomaly-model support |
+| Actor correlation | `python_tool/analysis.py` | SSID-history heuristic plus an optional IsolationForest anomaly model (needs ML extras) |
 | Covert-channel review | `python_tool/capture.py` | Local entropy checks on vendor-specific tags |
 | Wi-Fi 6/7 metadata | `python_tool/capture.py` | HE/EHT tag parsing where frames expose it |
-| Remote ID review | `python_tool/remote_id.py` | Lab marker extraction and alerting |
 | Evidence storage | `python_tool/storage.py` | SQLCipher when available; explicit insecure lab fallback |
 | Local dashboard API | `python_tool/api_bridge.py` | `127.0.0.1:5000` by default, optional bearer token |
 | Offline validation | `generate_lab_pcap.py`, `replay_pcap.py` | Real no-RF replay path |
 | Report bundle | `report_bundle.py` | Redacted local output for review packets |
-| Active mitigation | `active_mitigation.py` | Real lab-only capability behind config gates and `--arm` |
+| Active mitigation | `active_mitigation.py` | Scoped targeted deauth; fires only at in-scope BSSIDs with `--arm` |
 
 ## Operating Model
 
@@ -53,7 +52,7 @@ This repo is written for the same lane as my current work: red-team pressure tes
 - **Local first:** API binds to `127.0.0.1` unless you explicitly change `SENTINEL_API_HOST`.
 - **Evidence aware:** use `SENTINEL_DB_KEY` for encrypted storage when SQLCipher is available.
 - **No surprise egress:** update checks are disabled unless `SENTINEL_CHECK_UPDATES=1`.
-- **Trusted access only:** active mitigation requires lab mode, acknowledgement, and allowed BSSID scope.
+- **Scope-locked:** active deauth fires only at BSSIDs in your declared engagement scope, and only with `--arm`.
 - **No-RF validation:** synthetic pcap generation and replay let you prove the pipeline before touching hardware.
 - **Ghost rule:** real capability is acceptable only when the warning, scope, and evidence story are equally real.
 
@@ -138,8 +137,8 @@ bash scripts/run_api.sh
 ```
 
 The frontend reads dashboard state from `/api/stats`, including AP counts,
-rogue AP counts, deauth groups, temporal buckets, vendor enrichment, Remote ID
-alerts, anomaly-model status, and hardware readiness.
+rogue AP counts, deauth groups, temporal buckets, vendor enrichment,
+anomaly-model status, and hardware readiness.
 
 For a Mac browser pointed at a VM API:
 
@@ -165,15 +164,12 @@ SENTINEL_ALLOW_INSECURE_DB=1 python3 report_bundle.py --db /tmp/bridge_replay.db
 
 ## Active Mitigation
 
-Active mitigation is a real lab capability and should stay disabled for normal monitoring. `--arm` alone is not enough. The runtime refuses active mode unless all gates pass:
+Active mitigation is a real offensive capability (targeted deauth via `aireplay-ng`) for authorized engagements: handshake capture, client-isolation testing, rogue-AP takedown. It is governed by engagement scope, not a lab lock. It fires only when both are true:
 
-- `operation_mode: lab`
-- `trusted_access_ack: true`
-- at least one allowed lab BSSID
-- target BSSID is inside the allowed lab list
-- broadcast-client deauth remains disabled unless explicitly allowed for an isolated lab
+- you start with `--arm`, and
+- the target BSSID is in your declared scope.
 
-Start from `python_tool/config.yaml` and document scope using the trusted-access materials before enabling active mode.
+Load your scope from your signed rules of engagement, either `active_mitigation.scope_bssids` in `python_tool/config.yaml` or a `--scope engagement.txt` file (one BSSID per line). An empty scope keeps the tool passive: recon and detection only, nothing transmitted. The scope is enforced in code, so the tool cannot deauth a BSSID you did not authorize.
 
 ## Environment Variables
 
@@ -211,7 +207,6 @@ Start here when preparing a formal lab or contract workflow:
 ## Current Boundaries
 
 - Full IEEE OUI distribution is not bundled; use `SENTINEL_OUI_CSV` for local enrichment.
-- Remote ID support is currently structured lab-marker extraction, not a complete production decoder.
 - Curated real pcaps should be captured only from owned hardware after trusted access is approved.
 - SQLite fallback is acceptable for local replay, not trusted evidence storage.
 

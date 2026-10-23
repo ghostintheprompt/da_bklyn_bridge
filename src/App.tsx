@@ -84,7 +84,6 @@ interface Stats {
     deauth_group_count: number;
     night_owl_count: number;
     ghost_network_count: number;
-    remote_id_alert_count: number;
   };
   aps: AP[];
   probes: Probe[];
@@ -648,7 +647,6 @@ export default function App() {
                     ['APs', stats.summary.ap_count, 'text-cyan-300'],
                     ['Probes', stats.summary.probe_count, 'text-yellow-300'],
                     ['Rogue', stats.summary.rogue_ap_count, 'text-red-300'],
-                    ['RID', stats.summary.remote_id_alert_count, 'text-emerald-300'],
                   ].map(([label, value, color]) => (
                     <div key={label as string} className="border border-zinc-800 bg-black/30 p-3">
                       <div className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-600">{label}</div>

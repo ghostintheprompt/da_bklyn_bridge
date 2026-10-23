@@ -12,7 +12,6 @@ Da Bklyn Bridge is a wireless monitoring and forensic dashboard for authorized e
 - Deauthentication spike detection.
 - WPA handshake observation.
 - Vendor tag entropy review.
-- Optional Drone Remote ID markers.
 - Local dashboard and alert history.
 
 ## Default Operating Posture

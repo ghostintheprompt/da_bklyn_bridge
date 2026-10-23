@@ -18,16 +18,13 @@
 - Added redacted `stats_snapshot.json` to report bundles for machine-readable review.
 - Added anomaly model lifecycle: offline training CLI, persisted model pickle, metadata JSON, model status API/dashboard exposure.
 - Added pluggable OUI CSV loading via `SENTINEL_OUI_CSV` while keeping the static fallback map.
-- Added structured Remote ID vendor-tag marker extraction for lab validation.
 - Wired dashboard views for rogue APs, deauth stats, night owls, ghost networks, vendor names, and anomaly model status.
 - Added `/api/health` and richer `/api/stats` summary fields.
 - Tightened release packaging excludes and added release manifest generation.
-- Added tests for OUI CSV loading, Remote ID marker extraction, anomaly metadata, and redacted report snapshots.
 
 ## Still Open
 
 - Bundled/licensed full IEEE OUI database or approved download/update workflow.
-- Real Remote ID parser beyond lab marker extraction.
 - Production anomaly lifecycle across owned field data: curated baseline sets, confidence display, drift retest cadence, and model review notes.
 - More complete Wi-Fi 6/7 parsing and 6 GHz hardware profile.
 - Curated real lab pcaps captured from owned hardware after trusted access is approved.

@@ -3,9 +3,9 @@
 The backend engine for Da Bklyn Bridge is a Python-based 802.11 monitoring suite designed for Alfa-class USB adapters running inside Linux monitor mode.
 
 ## 🛰️ Ghost-Protocol Core Capabilities
-- **Actor Fingerprinting**: Uses `IsolationForest` and SSID history clustering to correlate persistent actors even when they utilize MAC randomization (Locally Administered Addresses).
-- **Entropy-Based Exfiltration Detection**: Automatically audits `802.11` management frame tags for high-entropy payloads, flagging potential covert exfiltration channels.
-- **Lab-Gated Bridge Mode**: Programmatic disassociation is real, but remains blocked unless the trusted-access lab gates pass.
+- **Actor heuristic**: SSID-history fingerprinting (a hash of the SSID set a client probes for) to loosely group a client across MAC randomization. An optional `IsolationForest` anomaly model runs only when the ML extras are installed. This is a heuristic, not a full actor-correlation engine.
+- **Entropy-Based Exfiltration Heuristic**: Audits `802.11` vendor-specific tags for high-entropy payloads and flags high-entropy tags as a possible covert channel. A heuristic signal, not a decoder.
+- **Scoped Active Mitigation**: Programmatic deauth via `aireplay-ng`, armed with `--arm` and fired only at BSSIDs in your declared engagement scope.
 - **Driver-Stack Integrity**: Monitoring thread that heartbeats the selected interface to ensure monitor mode is not silently disabled.
 - **Encrypted Persistence**: SQLCipher is used when available. Local SQLite fallback requires explicit lab/test acknowledgement.
 
@@ -15,7 +15,7 @@ The backend engine for Da Bklyn Bridge is a Python-based 802.11 monitoring suite
 3. **03: Deauth Watch**: Real-time spectral violation detection with active counter-measures.
 4. **04: Time-Lapse**: Forensic pattern analysis identifying "Night-Owl" and "Ghost" (ephemeral) networks.
 5. **05: Self Audit**: Authorized BSSID enforcement and automated Rogue AP neutralizing.
-6. **06: Academy**: Integrated exam-prep reference (Security+/PenTest+) linked to live capture logic.
+6. **06: Academy**: A reference document (`ACADEMY.md`) with Security+/PenTest+ exam-concept notes. It is a doc, not a runtime mode.
 
 ## 🚀 Execution & Command Line Arguments
 ```bash
@@ -28,7 +28,8 @@ sudo python3 main.py [-i <interface>] [OPTIONS]
 | `-c, --config` | Path to custom `config.yaml` (Defines watched SSIDs/BSSIDs). |
 | `--db` | Evidence database path. |
 | `--skip-monitor-setup` | Use an interface already placed in monitor mode. |
-| `--arm` | **DANGER.** Enables Bridge Mode for active disassociation mitigation. |
+| `--arm` | Arm scoped active mitigation (targeted deauth). Fires only at in-scope BSSIDs. |
+| `--scope` | Engagement scope file: authorized target BSSIDs, one per line (`#` comments ok). |
 
 Prefer the wrapper from the repo root:
 
@@ -47,7 +48,7 @@ Standardized Incident IDs are generated for all alerts:
 - The API bridge binds to `127.0.0.1` unless `SENTINEL_API_HOST` is set.
 - Set `SENTINEL_API_TOKEN` to require bearer-token access to `/api/stats`.
 - Update checks are disabled unless `SENTINEL_CHECK_UPDATES=1`.
-- `--arm` does not enable active mitigation unless the config passes lab safety gates.
+- `--arm` enables active mitigation only when an engagement scope is declared; deauth fires only at in-scope BSSIDs.
 - Run `bash scripts/alfa_doctor.sh` inside the Linux VM when USB, driver, or monitor-mode setup is unclear.
 
 Offline validation:
