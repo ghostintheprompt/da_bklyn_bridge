@@ -127,13 +127,30 @@ def setup_monitor_mode(interface, skip_setup=False):
     print("[!] Run scripts/alfa_doctor.sh inside the Linux VM for driver and USB passthrough checks.")
     return None
 
+def _load_scope_file(path):
+    """Load authorized target BSSIDs from an engagement scope file.
+    One BSSID per line; blank lines and '#' comments are ignored."""
+    bssids = []
+    try:
+        with open(path, encoding="utf-8") as fh:
+            for raw in fh:
+                line = raw.split("#", 1)[0].strip()
+                if line:
+                    bssids.append(line.upper())
+    except OSError as e:
+        print(f"[!] Could not read scope file {path}: {e}")
+        sys.exit(1)
+    return bssids
+
+
 def main():
     parser = argparse.ArgumentParser(description="Da Bklyn Bridge - Alfa-class passive monitor")
     parser.add_argument("-i", "--interface", help="Wireless interface (for example wlan0). Autodetected when omitted.")
     parser.add_argument("-c", "--config", default=DEFAULT_CONFIG, help="Path to config file")
     parser.add_argument("--db", default="sentinel.db", help="SQLite/SQLCipher database path")
     parser.add_argument("--skip-monitor-setup", action="store_true", help="Use the interface as-is when monitor mode is already configured")
-    parser.add_argument("--arm", action="store_true", help="Phase 4: Enable 'Bridge Mode' for Active Mitigation (Targeted Disassociation)")
+    parser.add_argument("--arm", action="store_true", help="Arm active mitigation (targeted deauth). Requires a declared engagement scope; fires only at in-scope BSSIDs.")
+    parser.add_argument("--scope", help="Engagement scope file: one authorized target BSSID per line (# comments ok). Loads active_mitigation.scope_bssids from your signed ROE.")
     args = parser.parse_args()
 
     if os.geteuid() != 0:
@@ -158,6 +175,10 @@ def main():
 
     db = Database(args.db)
     alert_mgr = AlertManager(db, config_path=args.config)
+    if args.scope:
+        scope_bssids = _load_scope_file(args.scope)
+        alert_mgr.config.setdefault("active_mitigation", {})["scope_bssids"] = scope_bssids
+        print(f"[*] Engagement scope loaded: {len(scope_bssids)} authorized BSSID(s) from {args.scope}")
     remote_id = RemoteIDMonitor(db)
     gps_logger = GPSLogger()
     
