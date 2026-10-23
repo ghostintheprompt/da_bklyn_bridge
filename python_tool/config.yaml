@@ -8,14 +8,10 @@ dwell_time: 2
 blocklist_macs: []
 discord_webhook_url: ""
 
-# Trust posture defaults.
-# Keep passive unless operating inside a written, isolated lab scope.
-operation_mode: passive
-trusted_access_ack: false
-authorized_lab_bssids: []
-
+# Active mitigation (offensive deauth).
+# The tool deauths ONLY the BSSIDs listed in scope_bssids, and only when started
+# with --arm. Load scope_bssids from your signed rules of engagement. Leave it
+# empty to run passive: recon and detection only, nothing transmitted.
 active_mitigation:
-  enabled: false
-  allowed_bssids: []
-  allow_broadcast_client: false
-  frame_count: 1
+  scope_bssids: []      # authorized target BSSIDs (your ROE)
+  frame_count: 0        # 0 = continuous deauth until stopped; set N for an N-frame burst
