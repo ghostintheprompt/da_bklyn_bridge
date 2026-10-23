@@ -8,7 +8,6 @@ from pathlib import Path
 from capture import PacketCapturer
 from storage import Database
 from alerting import AlertManager
-from remote_id import RemoteIDMonitor
 from gps_module import GPSLogger
 from display_cli import SentinelDashboard
 from update_checker import check_for_updates
@@ -179,12 +178,11 @@ def main():
         scope_bssids = _load_scope_file(args.scope)
         alert_mgr.config.setdefault("active_mitigation", {})["scope_bssids"] = scope_bssids
         print(f"[*] Engagement scope loaded: {len(scope_bssids)} authorized BSSID(s) from {args.scope}")
-    remote_id = RemoteIDMonitor(db)
     gps_logger = GPSLogger()
     
     # Phase 4 Integrations
     kernel_monitor = KernelMonitor(monitor_interface, alert_mgr)
-    capturer = PacketCapturer(monitor_interface, db, alert_mgr, remote_id, gps_logger)
+    capturer = PacketCapturer(monitor_interface, db, alert_mgr, gps_logger)
     
     if args.arm:
         if not capturer.mitigator.enable():

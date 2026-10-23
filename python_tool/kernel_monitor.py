@@ -11,9 +11,11 @@ class KernelMonitor:
         
     def _check_driver_status(self):
         """
-        Phase 4: Kernel-Level Integrity Monitoring
-        Detects if the rtl8812au driver drops out of monitor mode silently,
-        indicating a potential kernel-level hook or rogue persistence mechanism.
+        Monitor-mode watchdog.
+        Heartbeats the interface and reports if it silently leaves monitor mode
+        (a driver reset, an airmon change, a USB glitch, or someone knocking it
+        down). This is an availability check on the capture interface, not a
+        kernel-integrity or rootkit detector.
         """
         try:
             # Check the mode of the interface using iw
@@ -29,9 +31,9 @@ class KernelMonitor:
             time.sleep(10) # Heartbeat interval
             if not self._check_driver_status():
                 self.alert_mgr.log_and_alert(
-                    "KERNEL_HOOK_SUSPECTED", 
-                    f"Driver heartbeat failed! Interface {self.interface} dropped from monitor mode silently. Potential kernel tampering.", 
-                    "critical"
+                    "MONITOR_MODE_DROPPED",
+                    f"Interface {self.interface} left monitor mode. Capture is blind until it is restored.",
+                    "warning"
                 )
                 
                 # Attempt to auto-remediate

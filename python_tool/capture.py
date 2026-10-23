@@ -11,11 +11,10 @@ def normalize_mac(mac):
 
 
 class PacketCapturer:
-    def __init__(self, interface, db, alert_mgr, remote_id=None, gps_logger=None):
+    def __init__(self, interface, db, alert_mgr, gps_logger=None):
         self.interface = interface
         self.db = db
         self.alert_mgr = alert_mgr
-        self.remote_id = remote_id
         self.gps_logger = gps_logger
         self.stop_event = threading.Event()
         self.channels_24 = list(range(1, 14))
@@ -117,9 +116,6 @@ class PacketCapturer:
             if rogue_detected and self.mitigator.bridge_mode_enabled:
                 self.mitigator.execute_targeted_deauth(bssid)
                 
-            if self.remote_id:
-                self.remote_id.process_packet(pkt)
-
         # 4. WPA Handshake (EAPOL) Detection
         elif pkt.haslayer(EAPOL):
             bssid = normalize_mac(pkt[Dot11].addr3)

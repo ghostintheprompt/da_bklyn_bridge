@@ -15,7 +15,6 @@ from scapy.all import PcapReader
 
 from alerting import AlertManager
 from capture import PacketCapturer
-from remote_id import RemoteIDMonitor
 from storage import Database
 
 
@@ -32,9 +31,8 @@ def replay_pcap(path, db_path, config_path, limit=None):
 
     db = Database(db_path)
     alert_mgr = AlertManager(db, config_path)
-    remote_id = RemoteIDMonitor(db)
     gps = StaticGPS()
-    capturer = PacketCapturer("offline-replay", db, alert_mgr, remote_id, gps)
+    capturer = PacketCapturer("offline-replay", db, alert_mgr, gps)
 
     count = 0
     with PcapReader(str(path)) as packets:

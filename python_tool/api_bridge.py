@@ -154,7 +154,6 @@ def build_stats(config_path=DEFAULT_CONFIG):
     return {
         "interface": interface,
         "mode": config.get("operation_mode", "passive"),
-        "channel": 1,  # Placeholder for current channel
         "hardware": build_hardware_status(interface),
         "summary": {
             "ap_count": len(aps),
@@ -165,7 +164,6 @@ def build_stats(config_path=DEFAULT_CONFIG):
             "deauth_group_count": len(deauth_stats),
             "night_owl_count": len(night_owls),
             "ghost_network_count": len(ghosts),
-            "remote_id_alert_count": sum(1 for alert in alerts if alert[1] == "REMOTE_ID_DRONE"),
         },
         "aps": [
             {
