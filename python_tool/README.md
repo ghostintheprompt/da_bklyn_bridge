@@ -6,7 +6,8 @@ The backend engine for Da Bklyn Bridge is a Python-based 802.11 monitoring suite
 - **Actor heuristic**: SSID-history fingerprinting (a hash of the SSID set a client probes for) to loosely group a client across MAC randomization. An optional `IsolationForest` anomaly model runs only when the ML extras are installed. This is a heuristic, not a full actor-correlation engine.
 - **Entropy-Based Exfiltration Heuristic**: Audits `802.11` vendor-specific tags for high-entropy payloads and flags high-entropy tags as a possible covert channel. A heuristic signal, not a decoder.
 - **Scoped Active Mitigation**: Programmatic deauth via `aireplay-ng`, armed with `--arm` and fired only at BSSIDs in your declared engagement scope.
-- **Driver-Stack Integrity**: Monitoring thread that heartbeats the selected interface to ensure monitor mode is not silently disabled.
+- **Drone Remote ID**: Real OpenDroneID (ASTM F3411) decoder for Wi-Fi beacons. Decodes Basic ID (UAS serial), Location, and Operator ID. Validated against spec-conformant frames, not yet confirmed against a live drone.
+- **Monitor-Mode Watchdog**: Heartbeats the selected interface and alerts if it silently leaves monitor mode.
 - **Encrypted Persistence**: SQLCipher is used when available. Local SQLite fallback requires explicit lab/test acknowledgement.
 
 ## 📊 Operational Modes (Operationalized)

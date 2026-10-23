@@ -40,6 +40,7 @@ This repo is written for the same lane as my current work: red-team pressure tes
 | Actor correlation | `python_tool/analysis.py` | SSID-history heuristic plus an optional IsolationForest anomaly model (needs ML extras) |
 | Covert-channel review | `python_tool/capture.py` | Local entropy checks on vendor-specific tags |
 | Wi-Fi 6/7 metadata | `python_tool/capture.py` | HE/EHT tag parsing where frames expose it |
+| Drone Remote ID | `python_tool/remote_id.py` | Real OpenDroneID (ASTM F3411) Wi-Fi decoder: Basic ID, Location, Operator ID. Validated vs spec vectors, not yet a live drone |
 | Evidence storage | `python_tool/storage.py` | SQLCipher when available; explicit insecure lab fallback |
 | Local dashboard API | `python_tool/api_bridge.py` | `127.0.0.1:5000` by default, optional bearer token |
 | Offline validation | `generate_lab_pcap.py`, `replay_pcap.py` | Real no-RF replay path |
